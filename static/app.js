@@ -461,37 +461,141 @@
         }
     }
 
+    // ─── Helpers: Base64 & Local Storage ───────────────────────────────────
+    function b64toBlob(b64Data, contentType = "application/pdf", sliceSize = 512) {
+        try {
+            const byteCharacters = atob(b64Data);
+            const byteArrays = [];
+            for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+                const slice = byteCharacters.slice(offset, offset + sliceSize);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                byteArrays.push(new Uint8Array(byteNumbers));
+            }
+            return new Blob(byteArrays, { type: contentType });
+        } catch (e) {
+            console.error("Base64 to Blob error:", e);
+            return null;
+        }
+    }
+
+    function saveBillLocally(bill) {
+        try {
+            const existing = getLocalBills();
+            const filtered = existing.filter(b => b.filename !== bill.filename);
+            filtered.unshift(bill);
+            // Keep up to 50 recent bills in local storage
+            localStorage.setItem("mitraya_saved_bills", JSON.stringify(filtered.slice(0, 50)));
+        } catch (e) {
+            console.warn("Could not save bill locally:", e);
+        }
+    }
+
+    function getLocalBills() {
+        try {
+            const raw = localStorage.getItem("mitraya_saved_bills");
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function downloadPdfBlob(bill) {
+        let url = bill._blobUrl;
+        if (!url && bill.pdf_base64) {
+            const blob = b64toBlob(bill.pdf_base64);
+            if (blob) {
+                url = URL.createObjectURL(blob);
+                bill._blobUrl = url;
+                bill._blob = blob;
+            }
+        }
+        if (!url) {
+            url = bill.download_url;
+        }
+
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = bill.filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+        }, 100);
+    }
+
     // ─── Success Modal & Preview ───────────────────────────────────────────
     function showSuccessModal(bill) {
+        // Convert Base64 to Blob if available
+        if (bill.pdf_base64) {
+            const blob = b64toBlob(bill.pdf_base64);
+            if (blob) {
+                bill._blob = blob;
+                bill._blobUrl = URL.createObjectURL(blob);
+            }
+            saveBillLocally(bill);
+        }
+
         elements.successBillTitle.textContent = bill.filename;
         elements.successBillSize.textContent = `${bill.size_kb} KB`;
         elements.successBillTime.textContent = bill.created_at || "Just now";
 
-        elements.btnDownloadPdf.href = bill.download_url;
-        elements.btnDownloadPdf.setAttribute("download", bill.filename);
-        
-        elements.btnViewPdf.href = bill.preview_url;
-        elements.pdfPreviewFrame.src = bill.preview_url;
+        const effectiveUrl = bill._blobUrl || bill.download_url;
+        const previewUrl = bill._blobUrl || bill.preview_url;
 
-        // Setup WhatsApp Share Link
-        const grandTotalText = elements.previewGrandtotal.textContent;
-        const msg = encodeURIComponent(
-            `*Hotel Mitraya — Bill Invoice*\n` +
-            `Customer: ${bill.customer_name}\n` +
-            `Bill No: #${bill.bill_no}\n` +
-            `Amount: ${grandTotalText}\n` +
-            `Thank you for your business!`
-        );
-        elements.btnShareBill.onclick = () => {
-            if (navigator.share) {
-                navigator.share({
-                    title: `Bill #${bill.bill_no} - Hotel Mitraya`,
-                    text: `Hotel Mitraya Bill #${bill.bill_no} for ${bill.customer_name} (${grandTotalText})`,
-                    url: window.location.origin + bill.download_url
-                }).catch(() => {});
-            } else {
-                window.open(`https://api.whatsapp.com/send?text=${msg}`, "_blank");
+        // Download button click handler
+        elements.btnDownloadPdf.href = effectiveUrl;
+        elements.btnDownloadPdf.setAttribute("download", bill.filename);
+        elements.btnDownloadPdf.onclick = (e) => {
+            e.preventDefault();
+            downloadPdfBlob(bill);
+            showToast(`Downloading ${bill.filename}`, "info");
+        };
+
+        // Preview Frame
+        elements.btnViewPdf.href = previewUrl;
+        elements.btnViewPdf.onclick = (e) => {
+            if (bill._blobUrl) {
+                e.preventDefault();
+                window.open(bill._blobUrl, "_blank");
             }
+        };
+        elements.pdfPreviewFrame.src = previewUrl;
+
+        // Setup WhatsApp PDF Share Handler
+        const grandTotalText = elements.previewGrandtotal.textContent;
+        const shareMsg = `*Hotel Mitraya — Bill Invoice*\nCustomer: ${bill.customer_name}\nBill No: #${bill.bill_no}\nAmount: ${grandTotalText}\nThank you for your business!`;
+
+        elements.btnShareBill.onclick = async () => {
+            // Priority 1: Direct PDF file attachment on mobile devices via Web Share API
+            if (bill._blob && navigator.share && navigator.canShare) {
+                try {
+                    const file = new File([bill._blob], bill.filename, { type: "application/pdf" });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: `Bill #${bill.bill_no} - Hotel Mitraya`,
+                            text: shareMsg
+                        });
+                        showToast("Shared PDF Bill successfully!", "success");
+                        return;
+                    }
+                } catch (err) {
+                    if (err.name === "AbortError") return;
+                    console.warn("Native file share fallback:", err);
+                }
+            }
+
+            // Priority 2: Fallback for desktop / unsupported browsers
+            // Download the PDF automatically so the user has the file, then open WhatsApp chat
+            downloadPdfBlob(bill);
+            showToast("Downloaded PDF file! Opening WhatsApp...", "info");
+            setTimeout(() => {
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareMsg)}`, "_blank");
+            }, 300);
         };
 
         elements.modalSuccess.classList.remove("hidden");
@@ -508,28 +612,60 @@
 
         try {
             const url = query ? `/api/bills?q=${encodeURIComponent(query)}` : "/api/bills";
-            const res = await fetch(url);
-            const data = await res.json();
-
-            if (!data.success) {
-                elements.historyListContainer.innerHTML = `<div class="empty-state">Error loading bills</div>`;
-                return;
+            let serverBills = [];
+            try {
+                const res = await fetch(url);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.bills) {
+                        serverBills = data.bills;
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not fetch server bills:", err);
             }
 
-            elements.billsCountBadge.textContent = data.count || 0;
+            // Merge server bills with client local storage bills
+            const localBills = getLocalBills();
+            const mergedMap = new Map();
 
-            if (!data.bills || data.bills.length === 0) {
+            serverBills.forEach(b => mergedMap.set(b.filename, b));
+            localBills.forEach(b => {
+                if (!mergedMap.has(b.filename)) {
+                    mergedMap.set(b.filename, b);
+                } else if (b.pdf_base64 && !mergedMap.get(b.filename).pdf_base64) {
+                    // Enrich server bill with local base64
+                    mergedMap.get(b.filename).pdf_base64 = b.pdf_base64;
+                }
+            });
+
+            let allBills = Array.from(mergedMap.values());
+            if (query) {
+                const q = query.toLowerCase();
+                allBills = allBills.filter(b => 
+                    (b.customer_name && b.customer_name.toLowerCase().includes(q)) ||
+                    (b.bill_no && b.bill_no.toLowerCase().includes(q)) ||
+                    (b.filename && b.filename.toLowerCase().includes(q))
+                );
+            }
+
+            // Sort newest first
+            allBills.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            elements.billsCountBadge.textContent = allBills.length;
+
+            if (allBills.length === 0) {
                 elements.historyListContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fa-regular fa-folder-open" style="font-size: 2rem;"></i>
-                        <p>No saved PDF bills found in <code>/bills</code></p>
+                        <p>No saved PDF bills found</p>
                     </div>
                 `;
                 return;
             }
 
             elements.historyListContainer.innerHTML = "";
-            data.bills.forEach(b => {
+            allBills.forEach(b => {
                 const card = document.createElement("div");
                 card.className = "history-card";
                 card.innerHTML = `
@@ -542,22 +678,40 @@
                         <span><i class="fa-solid fa-file-pdf"></i> ${b.size_kb} KB</span>
                     </div>
                     <div class="history-actions">
-                        <a href="${b.download_url}" class="btn-history-action" download title="Download PDF">
+                        <button type="button" class="btn-history-action btn-history-download" title="Download PDF">
                             <i class="fa-solid fa-download"></i> Download
-                        </a>
-                        <a href="${b.preview_url}" target="_blank" class="btn-history-action" title="View PDF">
+                        </button>
+                        <button type="button" class="btn-history-action btn-history-preview" title="View PDF">
                             <i class="fa-solid fa-eye"></i> View
-                        </a>
+                        </button>
                         <button type="button" class="btn-history-action btn-history-delete" data-filename="${b.filename}" title="Delete Bill">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
                 `;
 
+                // Download event
+                card.querySelector(".btn-history-download").addEventListener("click", () => {
+                    downloadPdfBlob(b);
+                    showToast(`Downloading ${b.filename}`, "info");
+                });
+
+                // Preview event
+                card.querySelector(".btn-history-preview").addEventListener("click", () => {
+                    if (b.pdf_base64) {
+                        const blob = b64toBlob(b.pdf_base64);
+                        if (blob) {
+                            window.open(URL.createObjectURL(blob), "_blank");
+                            return;
+                        }
+                    }
+                    window.open(b.preview_url || b.download_url, "_blank");
+                });
+
                 // Delete bill event
                 card.querySelector(".btn-history-delete").addEventListener("click", async (e) => {
                     const fname = e.currentTarget.dataset.filename;
-                    if (confirm(`Are you sure you want to delete '${fname}' from /bills?`)) {
+                    if (confirm(`Are you sure you want to delete '${fname}'?`)) {
                         await deleteBill(fname);
                     }
                 });
@@ -567,21 +721,23 @@
 
         } catch (e) {
             console.error(e);
-            elements.historyListContainer.innerHTML = `<div class="empty-state">Failed to connect to server</div>`;
+            elements.historyListContainer.innerHTML = `<div class="empty-state">Failed to load bills</div>`;
         }
     }
 
     async function deleteBill(filename) {
         try {
-            const res = await fetch(`/api/bills/${encodeURIComponent(filename)}`, { method: "DELETE" });
-            const data = await res.json();
-            if (data.success) {
-                showToast(`Deleted ${filename}`, "info");
-                loadSavedBills(elements.historySearchInput.value.trim());
-                fetchSavedBillsCount();
-            } else {
-                showToast(data.error || "Failed to delete", "error");
-            }
+            // Remove from local storage
+            const local = getLocalBills().filter(b => b.filename !== filename);
+            localStorage.setItem("mitraya_saved_bills", JSON.stringify(local));
+
+            try {
+                await fetch(`/api/bills/${encodeURIComponent(filename)}`, { method: "DELETE" });
+            } catch (e) {}
+
+            showToast(`Deleted ${filename}`, "info");
+            loadSavedBills(elements.historySearchInput.value.trim());
+            fetchSavedBillsCount();
         } catch (e) {
             showToast("Error deleting bill", "error");
         }

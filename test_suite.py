@@ -103,7 +103,8 @@ def run_tests():
     gen_result = r.json()
     assert gen_result["success"] == True
     bill_meta = gen_result["bill"]
-    print(f"    -> OK: Bill generated: {bill_meta['filename']} ({bill_meta['size_kb']} KB)")
+    assert bill_meta.get("pdf_base64"), "pdf_base64 missing in response"
+    print(f"    -> OK: Bill generated with base64 PDF: {bill_meta['filename']} ({bill_meta['size_kb']} KB)")
 
     # 10. List & Search Saved Bills
     print("\n[10] Testing GET /api/bills and Search...")

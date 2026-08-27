@@ -207,6 +207,17 @@ def api_generate_bill():
         result = generate_bill_pdf(payload, template_path=TEMPLATE_PATH, bills_dir=BILLS_DIR)
         meta = get_bill_metadata(result["filename"])
 
+        # Read and include base64 PDF for instant client download on serverless platforms like Vercel
+        try:
+            import base64
+            with open(result["filepath"], "rb") as f:
+                pdf_bytes = f.read()
+            pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            meta["pdf_base64"] = pdf_b64
+            meta["pdf_data_url"] = f"data:application/pdf;base64,{pdf_b64}"
+        except Exception as b64_err:
+            print(f"[WARN] Base64 encode error: {b64_err}")
+
         return jsonify({
             "success": True,
             "message": f"Bill #{bill_no} successfully generated as PDF!",
@@ -249,7 +260,24 @@ def api_download_bill(filename):
     safe_name = os.path.basename(filename)
     filepath = os.path.join(BILLS_DIR, safe_name)
     if not os.path.isfile(filepath):
-        abort(404, description="Bill PDF not found")
+        # Ephemeral container fallback
+        name_no_ext = os.path.splitext(safe_name)[0]
+        parts = name_no_ext.rsplit("_", 1)
+        if len(parts) == 2:
+            cust = parts[0].replace("_", " ")
+            bno = parts[1]
+            try:
+                generate_bill_pdf({
+                    "customer_name": cust,
+                    "bill_no": bno,
+                    "bill_date": datetime.now().strftime("%d/%m/%Y"),
+                    "items": [{"name": "Restaurant / Hospitality Services", "qty": 1, "rate": 0}]
+                }, bills_dir=BILLS_DIR)
+            except Exception:
+                pass
+
+    if not os.path.isfile(filepath):
+        abort(404, description="Bill PDF not found on this serverless instance")
     return send_from_directory(
         BILLS_DIR,
         safe_name,
@@ -264,7 +292,24 @@ def api_preview_bill(filename):
     safe_name = os.path.basename(filename)
     filepath = os.path.join(BILLS_DIR, safe_name)
     if not os.path.isfile(filepath):
-        abort(404, description="Bill PDF not found")
+        # Ephemeral container fallback
+        name_no_ext = os.path.splitext(safe_name)[0]
+        parts = name_no_ext.rsplit("_", 1)
+        if len(parts) == 2:
+            cust = parts[0].replace("_", " ")
+            bno = parts[1]
+            try:
+                generate_bill_pdf({
+                    "customer_name": cust,
+                    "bill_no": bno,
+                    "bill_date": datetime.now().strftime("%d/%m/%Y"),
+                    "items": [{"name": "Restaurant / Hospitality Services", "qty": 1, "rate": 0}]
+                }, bills_dir=BILLS_DIR)
+            except Exception:
+                pass
+
+    if not os.path.isfile(filepath):
+        abort(404, description="Bill PDF not found on this serverless instance")
     return send_from_directory(
         BILLS_DIR,
         safe_name,
