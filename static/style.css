@@ -1351,6 +1351,22 @@ body {
     .desktop-only { display: none !important; }
     .mobile-only { display: flex !important; }
 
+    .header-container {
+        padding: 0 10px;
+    }
+
+    .header-actions {
+        gap: 6px;
+    }
+
+    .btn-header-secondary .btn-text {
+        display: none;
+    }
+
+    .btn-header-secondary {
+        padding: 8px 10px;
+    }
+
     .main-content {
         padding: 14px 12px 90px 12px;
     }

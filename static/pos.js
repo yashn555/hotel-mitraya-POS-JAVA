@@ -44,11 +44,12 @@
     const mobileCartCount = document.getElementById("mobile-cart-count");
     const mobileCartTotal = document.getElementById("mobile-cart-total");
 
-    // Modals
+    // Modals & Bluetooth Elements
     const receiptModal = document.getElementById("receipt-modal");
     const btnCloseReceipt = document.getElementById("btn-close-receipt-modal");
     const btnDismissReceipt = document.getElementById("btn-dismiss-receipt");
     const btnPrintReceipt = document.getElementById("btn-print-receipt");
+    const btnBtDirectPrint = document.getElementById("btn-bt-direct-print");
     const recentBillsModal = document.getElementById("recent-bills-modal");
     const btnOpenRecent = document.getElementById("btn-open-recent-bills");
     const btnCloseRecent = document.getElementById("btn-close-recent-modal");
@@ -59,6 +60,23 @@
     const btnCloseShortcuts = document.getElementById("btn-close-shortcuts-modal");
     const btnDismissShortcuts = document.getElementById("btn-dismiss-shortcuts");
     const btnLogout = document.getElementById("btn-logout");
+
+    // Bluetooth Printer Modal Elements
+    const btnBtPrinter = document.getElementById("btn-bt-printer");
+    const btBtnLabel = document.getElementById("bt-btn-label");
+    const btPrinterModal = document.getElementById("bt-printer-modal");
+    const btnCloseBtModal = document.getElementById("btn-close-bt-modal");
+    const btnDismissBtModal = document.getElementById("btn-dismiss-bt-modal");
+    const btnBtConnect = document.getElementById("btn-bt-connect");
+    const btnBtDisconnect = document.getElementById("btn-bt-disconnect");
+    const btnBtTestPrint = document.getElementById("btn-bt-test-print");
+    const btModalDeviceName = document.getElementById("bt-modal-device-name");
+    const btModalStatusDot = document.getElementById("bt-modal-status-dot");
+    const btModalStatusText = document.getElementById("bt-modal-status-text");
+    const btAutoprintToggle = document.getElementById("bt-autoprint-toggle");
+    const btPaperWidthSelect = document.getElementById("bt-paper-width-select");
+
+    let currentReceiptBill = null;
 
     // Toast Notifications
     function showToast(message, type = "success") {
@@ -450,14 +468,14 @@
             const data = await res.json();
 
             if (res.ok && data.success) {
+                currentReceiptBill = data.bill;
                 showToast(`Order #${data.bill.bill_number} generated!`, "success");
                 
                 // If on mobile, close drawer
                 if (cartPane) cartPane.classList.remove("mobile-open");
 
-                // Render and open Thermal Receipt
+                // Render Thermal Receipt
                 renderThermalReceipt(data.bill);
-                openReceiptModal();
 
                 // Clear current cart for next customer
                 cart = [];
@@ -466,10 +484,23 @@
                 if (cashReceivedInput) cashReceivedInput.value = "";
                 updateCartUI();
 
-                // Trigger print dialog automatically
-                setTimeout(() => {
-                    window.print();
-                }, 300);
+                // Check if Bluetooth printer is connected and auto-print is enabled
+                if (window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected() && window.MitrayaBluetoothPrinter.isAutoPrintEnabled()) {
+                    try {
+                        await window.MitrayaBluetoothPrinter.printReceipt(data.bill);
+                        showToast(`Printed #${data.bill.bill_number} via Bluetooth!`, "success");
+                    } catch (btErr) {
+                        console.warn("BT auto-print failed, showing receipt modal:", btErr);
+                        showToast("Bluetooth print error. Showing receipt.", "error");
+                        openReceiptModal();
+                    }
+                } else {
+                    // Fallback to thermal receipt preview and window.print()
+                    openReceiptModal();
+                    setTimeout(() => {
+                        window.print();
+                    }, 300);
+                }
 
             } else {
                 showToast(data.error || "Failed to process order", "error");
@@ -487,6 +518,7 @@
 
     // Thermal Receipt Rendering
     function renderThermalReceipt(bill) {
+        currentReceiptBill = bill;
         document.getElementById("rcpt-bill-no").textContent = `Bill: ${bill.bill_number}`;
         document.getElementById("rcpt-date").textContent = bill.created_at || new Date().toLocaleString();
         document.getElementById("rcpt-cashier").textContent = `Staff: ${bill.cashier_role || "Cashier"}`;
@@ -550,6 +582,41 @@
         window.print();
     });
 
+    if (btnBtDirectPrint) {
+        btnBtDirectPrint.addEventListener("click", async () => {
+            if (!currentReceiptBill) {
+                showToast("No active receipt data found.", "error");
+                return;
+            }
+            if (!window.MitrayaBluetoothPrinter) {
+                showToast("Bluetooth module not loaded.", "error");
+                return;
+            }
+            if (!window.MitrayaBluetoothPrinter.isConnected()) {
+                showToast("Connecting to Bluetooth Printer...", "info");
+                try {
+                    await window.MitrayaBluetoothPrinter.connect();
+                } catch (e) {
+                    if (e.name !== "NotFoundError") {
+                        showToast("Could not connect to Bluetooth Printer.", "error");
+                    }
+                    return;
+                }
+            }
+            try {
+                btnBtDirectPrint.disabled = true;
+                btnBtDirectPrint.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Printing...';
+                await window.MitrayaBluetoothPrinter.printReceipt(currentReceiptBill);
+                showToast("Printed via Bluetooth Thermal Printer!", "success");
+            } catch (err) {
+                showToast("Error printing to Bluetooth printer: " + err.message, "error");
+            } finally {
+                btnBtDirectPrint.disabled = false;
+                btnBtDirectPrint.innerHTML = '<i class="fa-brands fa-bluetooth"></i> Print (BT)';
+            }
+        });
+    }
+
     // Recent Bills Drawer & Reprint Logic
     async function loadRecentBills() {
         try {
@@ -594,6 +661,7 @@
             const res = await fetch(`/api/pos/bills/${billId}`);
             const data = await res.json();
             if (res.ok && data.success) {
+                currentReceiptBill = data.bill;
                 renderThermalReceipt(data.bill);
                 closeRecentBillsModal();
                 openReceiptModal();
@@ -617,6 +685,119 @@
     btnOpenRecent.addEventListener("click", openRecentBillsModal);
     btnCloseRecent.addEventListener("click", closeRecentBillsModal);
     btnCloseRecentFooter.addEventListener("click", closeRecentBillsModal);
+
+    // Bluetooth Printer Manager Setup
+    function initBluetoothPrinterUI() {
+        if (!window.MitrayaBluetoothPrinter) return;
+
+        const bt = window.MitrayaBluetoothPrinter;
+
+        function updateBTUI(info) {
+            if (info.connected) {
+                if (btnBtPrinter) {
+                    btnBtPrinter.className = "bt-status-btn connected";
+                    if (btBtnLabel) btBtnLabel.textContent = `BT: ${info.deviceName || "Connected"}`;
+                }
+                if (btModalStatusDot) {
+                    btModalStatusDot.className = "bt-status-dot connected";
+                }
+                if (btModalStatusText) {
+                    btModalStatusText.textContent = "Connected & Ready";
+                }
+                if (btModalDeviceName) {
+                    btModalDeviceName.textContent = info.deviceName || "Thermal Printer";
+                }
+                if (btnBtConnect) btnBtConnect.style.display = "none";
+                if (btnBtDisconnect) btnBtDisconnect.style.display = "inline-flex";
+            } else if (info.status === "connecting") {
+                if (btnBtPrinter) {
+                    btnBtPrinter.className = "bt-status-btn connecting";
+                    if (btBtnLabel) btBtnLabel.textContent = "BT Connecting...";
+                }
+                if (btModalStatusDot) btModalStatusDot.className = "bt-status-dot connecting";
+                if (btModalStatusText) btModalStatusText.textContent = "Pairing / Connecting...";
+            } else {
+                if (btnBtPrinter) {
+                    btnBtPrinter.className = "bt-status-btn";
+                    if (btBtnLabel) btBtnLabel.textContent = "BT Printer";
+                }
+                if (btModalStatusDot) btModalStatusDot.className = "bt-status-dot disconnected";
+                if (btModalStatusText) btModalStatusText.textContent = "Disconnected";
+                if (btModalDeviceName) btModalDeviceName.textContent = "No Printer Connected";
+                if (btnBtConnect) btnBtConnect.style.display = "inline-flex";
+                if (btnBtDisconnect) btnBtDisconnect.style.display = "none";
+            }
+        }
+
+        bt.onStatusChange(updateBTUI);
+
+        // Initial setup
+        if (btAutoprintToggle) {
+            btAutoprintToggle.checked = bt.isAutoPrintEnabled();
+            btAutoprintToggle.addEventListener("change", () => {
+                bt.setAutoPrintEnabled(btAutoprintToggle.checked);
+                showToast(`Bluetooth Auto-print ${btAutoprintToggle.checked ? "Enabled" : "Disabled"}`);
+            });
+        }
+
+        if (btPaperWidthSelect) {
+            btPaperWidthSelect.value = bt.paperWidth.toString();
+            btPaperWidthSelect.addEventListener("change", () => {
+                bt.setPaperWidth(parseInt(btPaperWidthSelect.value, 10));
+                showToast(`Paper width set to ${btPaperWidthSelect.value}mm`);
+            });
+        }
+
+        if (btnBtPrinter && btPrinterModal) {
+            btnBtPrinter.addEventListener("click", () => btPrinterModal.classList.add("active"));
+        }
+        if (btnCloseBtModal && btPrinterModal) {
+            btnCloseBtModal.addEventListener("click", () => btPrinterModal.classList.remove("active"));
+        }
+        if (btnDismissBtModal && btPrinterModal) {
+            btnDismissBtModal.addEventListener("click", () => btPrinterModal.classList.remove("active"));
+        }
+
+        if (btnBtConnect) {
+            btnBtConnect.addEventListener("click", async () => {
+                try {
+                    await bt.connect();
+                    showToast(`Connected to ${bt.getDeviceName() || "Bluetooth Printer"}!`, "success");
+                } catch (err) {
+                    if (err.name !== "NotFoundError") {
+                        showToast(err.message || "Failed to connect Bluetooth printer", "error");
+                    }
+                }
+            });
+        }
+
+        if (btnBtDisconnect) {
+            btnBtDisconnect.addEventListener("click", async () => {
+                await bt.disconnect();
+                showToast("Bluetooth printer disconnected.");
+            });
+        }
+
+        if (btnBtTestPrint) {
+            btnBtTestPrint.addEventListener("click", async () => {
+                if (!bt.isConnected()) {
+                    showToast("Please connect to a Bluetooth printer first.", "error");
+                    return;
+                }
+                try {
+                    btnBtTestPrint.disabled = true;
+                    btnBtTestPrint.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Printing Test...';
+                    await bt.printTestReceipt();
+                    showToast("Test receipt sent to printer!", "success");
+                } catch (e) {
+                    showToast("Test print failed: " + e.message, "error");
+                } finally {
+                    btnBtTestPrint.disabled = false;
+                    btnBtTestPrint.innerHTML = '<i class="fa-solid fa-receipt"></i> Test Print';
+                }
+            });
+        }
+    }
 
     // Shortcuts Modal
     if (btnOpenShortcuts && shortcutsModal) {
@@ -726,10 +907,51 @@
         }
     });
 
+    // Mobile Sidebar Drawer Controls (for Admin)
+    const adminSidebar = document.getElementById("admin-mobile-sidebar");
+    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+    const btnSidebarToggle = document.getElementById("btn-sidebar-toggle");
+    const btnSidebarClose = document.getElementById("btn-sidebar-close");
+    const btnSidebarLogout = document.getElementById("btn-sidebar-logout");
+
+    function openSidebar() {
+        if (adminSidebar) adminSidebar.classList.add("open");
+        if (sidebarBackdrop) sidebarBackdrop.classList.add("active");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeSidebar() {
+        if (adminSidebar) adminSidebar.classList.remove("open");
+        if (sidebarBackdrop) sidebarBackdrop.classList.remove("active");
+        document.body.style.overflow = "";
+    }
+
+    if (btnSidebarToggle) btnSidebarToggle.addEventListener("click", openSidebar);
+    if (btnSidebarClose) btnSidebarClose.addEventListener("click", closeSidebar);
+    if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
+
+    if (btnSidebarLogout) {
+        btnSidebarLogout.addEventListener("click", async () => {
+            try {
+                await fetch("/api/logout", { method: "POST" });
+                window.location.href = "/login";
+            } catch (e) {
+                window.location.href = "/login";
+            }
+        });
+    }
+
     // Initialize
-    document.addEventListener("DOMContentLoaded", () => {
+    function init() {
         loadCatalog();
         updateCartUI();
-    });
+        initBluetoothPrinterUI();
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
 
 })();
