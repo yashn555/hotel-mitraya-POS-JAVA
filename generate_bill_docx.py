@@ -288,9 +288,281 @@ def convert_docx_to_pdf(docx_path: str, pdf_path: str) -> str:
     except Exception as e:
         print(f"[WARN] docx2pdf library fallback failed: {e}")
 
-    if not os.path.exists(pdf_path):
-        raise RuntimeError("PDF Conversion failed. Please ensure MS Word (Windows) or LibreOffice (Linux/Docker) is installed.")
+    if os.path.exists(pdf_path):
+        return pdf_path
 
+    raise RuntimeError("PDF Conversion failed. Please ensure MS Word (Windows) or LibreOffice is installed.")
+
+# ─── Pure Python PDF Generator (Serverless / Cloud Native) ────────────────────
+
+def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
+    """
+    Generate pixel-perfect Hotel Mitraya invoice PDF using ReportLab.
+    Works natively on Linux/AWS Lambda/Vercel without needing LibreOffice or MS Word.
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether, HRFlowable
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+
+    os.makedirs(os.path.dirname(os.path.abspath(pdf_path)), exist_ok=True)
+    doc = SimpleDocTemplate(
+        pdf_path,
+        pagesize=A4,
+        leftMargin=30,
+        rightMargin=30,
+        topMargin=25,
+        bottomMargin=25
+    )
+    
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'HotelTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=20,
+        leading=24,
+        textColor=colors.HexColor('#991b1b'),
+        alignment=TA_CENTER
+    )
+    subtitle_style = ParagraphStyle(
+        'HotelSub',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#334155'),
+        alignment=TA_CENTER
+    )
+    bold_label = ParagraphStyle(
+        'BoldLabel',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor('#0f172a')
+    )
+    normal_val = ParagraphStyle(
+        'NormalVal',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor('#1e293b')
+    )
+    table_header = ParagraphStyle(
+        'THeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=11,
+        textColor=colors.white,
+        alignment=TA_CENTER
+    )
+    cell_left = ParagraphStyle(
+        'CellLeft',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#1e293b'),
+        alignment=TA_LEFT
+    )
+    cell_center = ParagraphStyle(
+        'CellCenter',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#1e293b'),
+        alignment=TA_CENTER
+    )
+    cell_right = ParagraphStyle(
+        'CellRight',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#1e293b'),
+        alignment=TA_RIGHT
+    )
+    
+    story = []
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    logo_path = os.path.join(base_dir, 'static', 'logo.png')
+    logo_img = None
+    if os.path.exists(logo_path):
+        try:
+            logo_img = Image(logo_path, width=65, height=65)
+        except Exception:
+            logo_img = None
+            
+    header_text = [
+        Paragraph('<b>HOTEL MITRAYA</b>', title_style),
+        Paragraph('Dharmaraj chowk Nr. Honda Showroom, Akurdi, Pune, 411035', subtitle_style),
+        Paragraph('<b>Contact:</b> +91 9158691003 &nbsp;|&nbsp; <b>FSSAI No.:</b> 21525037001433', subtitle_style),
+        Paragraph('<b>Bank Details:</b> A/c Holder - HOTEL MITRAYA &nbsp;|&nbsp; A/c No - 169402000001218 &nbsp;|&nbsp; IFSC - IOBA0001694', subtitle_style),
+    ]
+    
+    if logo_img:
+        header_table = Table([[logo_img, header_text]], colWidths=[75, 460])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN', (0,0), (0,0), 'CENTER'),
+        ]))
+        story.append(header_table)
+    else:
+        for p in header_text:
+            story.append(p)
+            
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width='100%', thickness=1.5, color=colors.HexColor('#991b1b'), spaceAfter=10))
+    
+    # Invoice Meta Bar
+    customer_name = str(data.get('customer_name', 'Valued Customer')).strip()
+    bill_no = str(data.get('bill_no', '1001')).strip()
+    created_on = str(data.get('created_on', '')).strip()
+    bill_date = str(data.get('bill_date', '')).strip()
+    txn_mode = str(data.get('txn_mode', 'CASH')).strip().upper() or "CASH"
+    
+    meta_data = [
+        [
+            Paragraph('<b>Billed To:</b>', bold_label),
+            Paragraph(f'<b>{customer_name}</b>', bold_label),
+            Paragraph('<b>Invoice No:</b>', bold_label),
+            Paragraph(f'#{bill_no}', normal_val)
+        ],
+        [
+            Paragraph('<b>Payment Mode:</b>', bold_label),
+            Paragraph(txn_mode, normal_val),
+            Paragraph('<b>Bill Date:</b>', bold_label),
+            Paragraph(bill_date, normal_val)
+        ],
+        [
+            Paragraph('', bold_label),
+            Paragraph('', normal_val),
+            Paragraph('<b>Created On:</b>', bold_label),
+            Paragraph(created_on, normal_val)
+        ]
+    ]
+    meta_table = Table(meta_data, colWidths=[90, 240, 85, 120])
+    meta_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 12))
+    
+    # Items Table
+    items = data.get('items', [])
+    discount = float(data.get('discount', 0) or 0)
+    grand_total = sum(float(i['qty']) * float(i['rate']) for i in items)
+    after_discount = grand_total - discount
+    received_raw = data.get('received_amount', '')
+    received_amount = float(received_raw) if (received_raw is not None and str(received_raw).strip() != '') else after_discount
+
+    def fmt_num(n):
+        return f'{n:,.2f}'
+
+    table_rows = [
+        [
+            Paragraph('#', table_header),
+            Paragraph('ITEM DESCRIPTION', table_header),
+            Paragraph('QTY', table_header),
+            Paragraph('RATE (₹)', table_header),
+            Paragraph('TOTAL (₹)', table_header)
+        ]
+    ]
+    
+    for idx, itm in enumerate(items):
+        iqty = float(itm.get('qty', 1))
+        irate = float(itm.get('rate', 0))
+        itot = iqty * irate
+        table_rows.append([
+            Paragraph(str(idx + 1), cell_center),
+            Paragraph(str(itm.get('name', '')), cell_left),
+            Paragraph(str(int(iqty) if iqty == int(iqty) else f'{iqty:.2f}'), cell_center),
+            Paragraph(fmt_num(irate), cell_right),
+            Paragraph(fmt_num(itot), cell_right)
+        ])
+        
+    # Subtotal row
+    table_rows.append([
+        Paragraph('', cell_center),
+        Paragraph('<b>Subtotal</b>', cell_left),
+        Paragraph('', cell_center),
+        Paragraph('', cell_right),
+        Paragraph(f'<b>₹{fmt_num(grand_total)}</b>', cell_right)
+    ])
+    
+    items_table = Table(table_rows, colWidths=[30, 275, 55, 85, 90])
+    items_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e3a8a')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#f1f5f9')),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, colors.HexColor('#f8fafc')])
+    ]))
+    story.append(items_table)
+    story.append(Spacer(1, 12))
+    
+    # Bottom Summary & Amount in words
+    amt_words = amount_to_words(after_discount)
+    words_para = [
+        Paragraph('<b>Amount in Words:</b>', bold_label),
+        Spacer(1, 4),
+        Paragraph(f'<i>{amt_words}</i>', normal_val),
+        Spacer(1, 10),
+        Paragraph('<b>Terms & Conditions:</b>', bold_label),
+        Paragraph('1. Subject to Pune Jurisdiction.<br/>2. Payment is due as per agreed terms.', subtitle_style)
+    ]
+    
+    summary_rows = [
+        [Paragraph('Sub Total:', bold_label), Paragraph(f'₹{fmt_num(grand_total)}', cell_right)],
+        [Paragraph('Discount:', bold_label), Paragraph(f'₹{fmt_num(discount)}', cell_right)],
+        [Paragraph('<b>TOTAL AMOUNT:</b>', bold_label), Paragraph(f'<b>₹{fmt_num(after_discount)}</b>', cell_right)],
+        [Paragraph('Received Amount:', bold_label), Paragraph(f'₹{fmt_num(received_amount)}', cell_right)],
+    ]
+    summary_table = Table(summary_rows, colWidths=[110, 90])
+    summary_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('BACKGROUND', (0,2), (-1,2), colors.HexColor('#fee2e2')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+    ]))
+    
+    bottom_table = Table([[words_para, summary_table]], colWidths=[325, 210])
+    bottom_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+    ]))
+    story.append(bottom_table)
+    story.append(Spacer(1, 20))
+    
+    # Signatures
+    sig_data = [
+        [
+            Paragraph('Customer Signature', subtitle_style),
+            Paragraph('For <b>HOTEL MITRAYA</b><br/><br/><br/>Authorized Signatory', subtitle_style)
+        ]
+    ]
+    sig_table = Table(sig_data, colWidths=[270, 265])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'BOTTOM')
+    ]))
+    story.append(sig_table)
+    
+    doc.build(story)
     return pdf_path
 
 
@@ -298,9 +570,10 @@ def convert_docx_to_pdf(docx_path: str, pdf_path: str) -> str:
 
 def generate_bill_pdf(data: dict, template_path: str = None, bills_dir: str = None) -> dict:
     """
-    Generate bill DOCX, convert to PDF, and store in dedicated `/bills` folder
+    Generate high-quality Hotel Mitraya PDF bill and store in dedicated `/bills` folder
     with naming convention: <Customer_Name>_<Bill_No>.pdf.
 
+    Uses ReportLab for instant, 100% reliable serverless PDF creation on Vercel/Cloud.
     Returns dict with file metadata and absolute/relative paths.
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -321,20 +594,20 @@ def generate_bill_pdf(data: dict, template_path: str = None, bills_dir: str = No
     base_name = f"{safe_cust}_{safe_bill}"
     pdf_filename = f"{base_name}.pdf"
     pdf_path = os.path.join(bills_dir, pdf_filename)
-    temp_docx_path = os.path.join(bills_dir, f".temp_{base_name}.docx")
 
-    # Step 1: Generate populated DOCX
-    generate_bill_docx(data, temp_docx_path, template_path)
-
-    # Step 2: Convert to PDF
-    convert_docx_to_pdf(temp_docx_path, pdf_path)
-
-    # Step 3: Remove intermediate DOCX file
-    if os.path.exists(temp_docx_path):
-        try:
-            os.remove(temp_docx_path)
-        except Exception:
-            pass
+    # Primary: Fast, clean, serverless pure-Python ReportLab PDF generation
+    try:
+        generate_bill_pdf_reportlab(data, pdf_path)
+    except Exception as e:
+        print(f"[WARN] ReportLab generation error: {e}. Attempting docx fallback...")
+        temp_docx_path = os.path.join(bills_dir, f".temp_{base_name}.docx")
+        generate_bill_docx(data, temp_docx_path, template_path)
+        convert_docx_to_pdf(temp_docx_path, pdf_path)
+        if os.path.exists(temp_docx_path):
+            try:
+                os.remove(temp_docx_path)
+            except Exception:
+                pass
 
     print(f"[OK] Final Bill PDF saved -> {pdf_path}")
     return {

@@ -2,5 +2,6 @@ Flask>=3.0.0
 Flask-Cors>=4.0.0
 lxml>=4.9.0
 num2words>=0.5.12
+reportlab>=4.0.0
 pywin32>=306; sys_platform == 'win32'
 gunicorn>=21.2.0; sys_platform != 'win32'
