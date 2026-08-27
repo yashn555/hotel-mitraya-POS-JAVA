@@ -295,6 +295,68 @@ def convert_docx_to_pdf(docx_path: str, pdf_path: str) -> str:
 
 # ─── Pure Python PDF Generator (Serverless / Cloud Native) ────────────────────
 
+def setup_reportlab_fonts() -> tuple:
+    """
+    Register TrueType Unicode fonts supporting the Indian Rupee symbol ('₹')
+    without tofu/black boxes.
+    Returns (font_normal, font_bold).
+    """
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.pdfbase.pdfmetrics import registerFontFamily
+
+    if "NotoSans" in pdfmetrics.getRegisteredFontNames() and "NotoSans-Bold" in pdfmetrics.getRegisteredFontNames():
+        return ("NotoSans", "NotoSans-Bold")
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    font_reg = os.path.join(base_dir, "static", "fonts", "NotoSans-Regular.ttf")
+    font_bold = os.path.join(base_dir, "static", "fonts", "NotoSans-Bold.ttf")
+    font_italic = os.path.join(base_dir, "static", "fonts", "NotoSans-Italic.ttf")
+    font_bolditalic = os.path.join(base_dir, "static", "fonts", "NotoSans-BoldItalic.ttf")
+
+    # 1. Primary: Bundled NotoSans fonts in /static/fonts/
+    if os.path.exists(font_reg) and os.path.exists(font_bold):
+        try:
+            pdfmetrics.registerFont(TTFont("NotoSans", font_reg))
+            pdfmetrics.registerFont(TTFont("NotoSans-Bold", font_bold))
+            if os.path.exists(font_italic):
+                pdfmetrics.registerFont(TTFont("NotoSans-Italic", font_italic))
+            if os.path.exists(font_bolditalic):
+                pdfmetrics.registerFont(TTFont("NotoSans-BoldItalic", font_bolditalic))
+            
+            registerFontFamily(
+                "NotoSans",
+                normal="NotoSans",
+                bold="NotoSans-Bold",
+                italic="NotoSans-Italic" if os.path.exists(font_italic) else "NotoSans",
+                boldItalic="NotoSans-BoldItalic" if os.path.exists(font_bolditalic) else "NotoSans-Bold"
+            )
+            return ("NotoSans", "NotoSans-Bold")
+        except Exception as e:
+            print(f"[WARN] Error registering bundled NotoSans font: {e}")
+
+    # 2. Secondary: Windows system fonts fallback (Arial / Segoe UI)
+    if sys.platform == "win32":
+        win_fonts_dir = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
+        for reg_name, bold_name, family_name in [
+            ("arial.ttf", "arialbd.ttf", "ArialCustom"),
+            ("segoeui.ttf", "segoeuib.ttf", "SegoeUICustom"),
+        ]:
+            reg_p = os.path.join(win_fonts_dir, reg_name)
+            bold_p = os.path.join(win_fonts_dir, bold_name)
+            if os.path.exists(reg_p) and os.path.exists(bold_p):
+                try:
+                    pdfmetrics.registerFont(TTFont(family_name, reg_p))
+                    pdfmetrics.registerFont(TTFont(f"{family_name}-Bold", bold_p))
+                    registerFontFamily(family_name, normal=family_name, bold=f"{family_name}-Bold", italic=family_name, boldItalic=f"{family_name}-Bold")
+                    return (family_name, f"{family_name}-Bold")
+                except Exception:
+                    pass
+
+    # 3. Final Fallback: Standard PostScript fonts
+    return ("Helvetica", "Helvetica-Bold")
+
+
 def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     """
     Generate pixel-perfect Hotel Mitraya invoice PDF using ReportLab.
@@ -305,6 +367,8 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether, HRFlowable
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+
+    font_normal, font_bold = setup_reportlab_fonts()
 
     os.makedirs(os.path.dirname(os.path.abspath(pdf_path)), exist_ok=True)
     doc = SimpleDocTemplate(
@@ -321,7 +385,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     title_style = ParagraphStyle(
         'HotelTitle',
         parent=styles['Normal'],
-        fontName='Helvetica-Bold',
+        fontName=font_bold,
         fontSize=20,
         leading=24,
         textColor=colors.HexColor('#991b1b'),
@@ -330,7 +394,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     subtitle_style = ParagraphStyle(
         'HotelSub',
         parent=styles['Normal'],
-        fontName='Helvetica',
+        fontName=font_normal,
         fontSize=8.5,
         leading=11,
         textColor=colors.HexColor('#334155'),
@@ -339,7 +403,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     bold_label = ParagraphStyle(
         'BoldLabel',
         parent=styles['Normal'],
-        fontName='Helvetica-Bold',
+        fontName=font_bold,
         fontSize=9,
         leading=12,
         textColor=colors.HexColor('#0f172a')
@@ -347,7 +411,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     normal_val = ParagraphStyle(
         'NormalVal',
         parent=styles['Normal'],
-        fontName='Helvetica',
+        fontName=font_normal,
         fontSize=9,
         leading=12,
         textColor=colors.HexColor('#1e293b')
@@ -355,7 +419,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     table_header = ParagraphStyle(
         'THeader',
         parent=styles['Normal'],
-        fontName='Helvetica-Bold',
+        fontName=font_bold,
         fontSize=9,
         leading=11,
         textColor=colors.white,
@@ -364,7 +428,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     cell_left = ParagraphStyle(
         'CellLeft',
         parent=styles['Normal'],
-        fontName='Helvetica',
+        fontName=font_normal,
         fontSize=8.5,
         leading=11,
         textColor=colors.HexColor('#1e293b'),
@@ -373,7 +437,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     cell_center = ParagraphStyle(
         'CellCenter',
         parent=styles['Normal'],
-        fontName='Helvetica',
+        fontName=font_normal,
         fontSize=8.5,
         leading=11,
         textColor=colors.HexColor('#1e293b'),
@@ -382,7 +446,7 @@ def generate_bill_pdf_reportlab(data: dict, pdf_path: str) -> str:
     cell_right = ParagraphStyle(
         'CellRight',
         parent=styles['Normal'],
-        fontName='Helvetica',
+        fontName=font_normal,
         fontSize=8.5,
         leading=11,
         textColor=colors.HexColor('#1e293b'),
