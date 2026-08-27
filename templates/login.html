@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Security Unlock — Hotel Mitraya</title>
+    <title>Hotel Mitraya — POS & Billing Security Login</title>
     
     <!-- Meta tags for mobile web app -->
     <meta name="theme-color" content="#0d1b2a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="description" content="Hotel Mitraya PDF Billing System Security Login">
+    <meta name="description" content="Hotel Mitraya Quick POS & Secured Billing System Login">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,11 +21,11 @@
     
     <style>
         :root {
-            --bg-base: #0a1118;
-            --bg-surface: rgba(18, 30, 49, 0.75);
-            --bg-card: rgba(23, 38, 60, 0.85);
-            --border-glow: rgba(56, 189, 248, 0.25);
-            --border-subtle: rgba(255, 255, 255, 0.1);
+            --bg-base: #070d14;
+            --bg-surface: rgba(18, 30, 49, 0.85);
+            --bg-card: rgba(23, 38, 60, 0.9);
+            --border-glow: rgba(56, 189, 248, 0.3);
+            --border-subtle: rgba(255, 255, 255, 0.12);
             --accent-primary: #38bdf8;
             --accent-gold: #f59e0b;
             --accent-emerald: #10b981;
@@ -46,7 +46,7 @@
         }
 
         body {
-            background: radial-gradient(circle at 50% 10%, #172d47 0%, #0d1b2a 45%, #070d14 100%);
+            background: radial-gradient(circle at 50% 10%, #172d47 0%, #0d1b2a 50%, #070d14 100%);
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
@@ -56,13 +56,12 @@
             overflow-x: hidden;
         }
 
-        /* Ambient Glow Circles in Background */
         .ambient-glow-1 {
             position: fixed;
             width: 450px;
             height: 450px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.12), transparent 70%);
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.14), transparent 70%);
             top: -100px;
             left: 50%;
             transform: translateX(-50%);
@@ -75,7 +74,7 @@
             width: 350px;
             height: 350px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(245, 158, 11, 0.08), transparent 70%);
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.09), transparent 70%);
             bottom: -50px;
             right: 10%;
             pointer-events: none;
@@ -86,24 +85,24 @@
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 420px;
+            max-width: 430px;
             background: var(--bg-surface);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-lg);
-            padding: 36px 28px;
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7),
+            padding: 32px 26px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.75),
                         0 0 0 1px rgba(255, 255, 255, 0.05),
                         inset 0 1px 0 rgba(255, 255, 255, 0.15);
             text-align: center;
-            animation: fadeInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: fadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         @keyframes fadeInScale {
             from {
                 opacity: 0;
-                transform: scale(0.95) translateY(10px);
+                transform: scale(0.96) translateY(12px);
             }
             to {
                 opacity: 1;
@@ -112,22 +111,22 @@
         }
 
         .brand-header {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .brand-logo-container {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 16px;
+            width: 76px;
+            height: 76px;
+            margin: 0 auto 12px;
             background: #ffffff;
-            border-radius: 20px;
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
             box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.5),
                         0 0 0 3px rgba(56, 189, 248, 0.35);
             overflow: hidden;
-            padding: 8px;
+            padding: 6px;
             transition: transform 0.2s ease;
         }
 
@@ -142,7 +141,7 @@
         }
 
         .brand-title {
-            font-size: 24px;
+            font-size: 23px;
             font-weight: 800;
             letter-spacing: -0.5px;
             color: #ffffff;
@@ -164,16 +163,63 @@
             border: 1px solid rgba(245, 158, 11, 0.25);
         }
 
-        .security-prompt {
-            margin-top: 14px;
-            font-size: 13px;
+        /* Role Selector Tabs */
+        .role-selector-wrapper {
+            margin: 18px 0 16px;
+        }
+
+        .role-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            background: rgba(10, 18, 30, 0.7);
+            padding: 5px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .role-tab-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: none;
+            background: transparent;
             color: var(--text-muted);
-            line-height: 1.5;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .role-tab-btn i {
+            font-size: 14px;
+        }
+
+        .role-tab-btn.active {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(2, 132, 199, 0.35));
+            color: #ffffff;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+        }
+
+        .role-tab-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .role-badge-info {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            min-height: 18px;
         }
 
         /* PIN Display Area */
         .pin-display-wrapper {
-            margin: 24px 0 20px;
+            margin: 16px 0 16px;
             position: relative;
         }
 
@@ -190,10 +236,10 @@
             align-items: center;
             justify-content: center;
             gap: 12px;
-            background: rgba(10, 18, 30, 0.6);
+            background: rgba(10, 18, 30, 0.7);
             border: 1.5px solid rgba(56, 189, 248, 0.2);
             border-radius: var(--radius-md);
-            padding: 16px 20px;
+            padding: 14px 18px;
             cursor: pointer;
             transition: all 0.2s ease;
         }
@@ -233,16 +279,10 @@
         }
 
         .pin-slot.filled {
-            background: rgba(56, 189, 248, 0.12);
+            background: rgba(56, 189, 248, 0.14);
             border-color: rgba(56, 189, 248, 0.5);
             color: var(--accent-primary);
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
-        }
-
-        .pin-slot.masked-dot::after {
-            content: '●';
-            font-size: 16px;
-            color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
         }
 
         .pin-toggle-btn {
@@ -276,7 +316,7 @@
             border: 1px solid rgba(244, 63, 94, 0.3);
             border-radius: var(--radius-sm);
             padding: 10px 14px;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
             animation: fadeIn 0.2s ease;
         }
 
@@ -289,15 +329,15 @@
         .keypad-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 22px;
+            gap: 9px;
+            margin-bottom: 18px;
         }
 
         .key-btn {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: var(--radius-md);
-            height: 52px;
+            height: 50px;
             color: #ffffff;
             font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace;
             font-size: 20px;
@@ -325,7 +365,7 @@
         .key-btn.key-action {
             background: rgba(255, 255, 255, 0.02);
             color: var(--text-muted);
-            font-size: 16px;
+            font-size: 15px;
         }
 
         .key-btn.key-action:hover {
@@ -336,7 +376,7 @@
         /* Unlock Button */
         .btn-unlock {
             width: 100%;
-            height: 52px;
+            height: 50px;
             background: linear-gradient(135deg, #0284c7, #0369a1);
             color: #ffffff;
             border: none;
@@ -371,7 +411,7 @@
         }
 
         .footer-note {
-            margin-top: 20px;
+            margin-top: 18px;
             font-size: 12px;
             color: var(--text-muted);
             letter-spacing: 0.3px;
@@ -383,24 +423,38 @@
     <div class="ambient-glow-2"></div>
 
     <div class="login-card">
-        <!-- Brand Header with Official Logo -->
+        <!-- Brand Header -->
         <div class="brand-header">
             <div class="brand-logo-container">
                 <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="hotel-logo-img">
             </div>
             <h1 class="brand-title">HOTEL MITRAYA</h1>
             <div class="brand-subtitle">
-                <i class="fa-solid fa-shield-halved"></i> Secured Billing System
+                <i class="fa-solid fa-shield-halved"></i> Secured POS &amp; Billing
             </div>
-            <p class="security-prompt">Enter your 4-digit security PIN to access the billing dashboard & invoices.</p>
         </div>
 
-        <!-- Hidden actual text input for keyboard entry -->
+        <!-- Role Selector Tabs -->
+        <div class="role-selector-wrapper">
+            <div class="role-tabs">
+                <button type="button" class="role-tab-btn active" id="tab-admin" data-role="admin">
+                    <i class="fa-solid fa-user-shield"></i> Admin
+                </button>
+                <button type="button" class="role-tab-btn" id="tab-cashier" data-role="cashier">
+                    <i class="fa-solid fa-cash-register"></i> Cashier
+                </button>
+            </div>
+            <div class="role-badge-info" id="role-info-text">
+                <i class="fa-solid fa-circle-info"></i> Admin: Dashboard, POS, Menu, Bulk Billing
+            </div>
+        </div>
+
+        <!-- Hidden input for keyboard entry -->
         <input type="password" id="hidden-pin-input" class="pin-input-hidden" maxlength="8" inputmode="numeric" autocomplete="one-time-code" autofocus>
 
         <!-- PIN Slots Display -->
         <div class="pin-display-wrapper" id="pin-wrapper">
-            <div class="pin-indicators focused" id="pin-indicators" title="Click or tap to enter PIN">
+            <div class="pin-indicators focused" id="pin-indicators" title="Click to enter PIN">
                 <div class="pin-slot" id="slot-0"></div>
                 <div class="pin-slot" id="slot-1"></div>
                 <div class="pin-slot" id="slot-2"></div>
@@ -440,7 +494,7 @@
 
         <!-- Submit Button -->
         <button type="button" class="btn-unlock" id="btn-submit-pin">
-            <span id="btn-text"><i class="fa-solid fa-unlock-keyhole"></i> Unlock System</span>
+            <span id="btn-text"><i class="fa-solid fa-unlock-keyhole"></i> Sign In to POS</span>
             <i class="fa-solid fa-spinner fa-spin" id="btn-spinner" style="display: none;"></i>
         </button>
 
@@ -453,10 +507,14 @@
         (function() {
             "use strict";
 
+            let selectedRole = "admin";
             let currentPin = "";
             let isMasked = true;
             const maxPinLength = 4;
 
+            const tabAdmin = document.getElementById("tab-admin");
+            const tabCashier = document.getElementById("tab-cashier");
+            const roleInfoText = document.getElementById("role-info-text");
             const hiddenInput = document.getElementById("hidden-pin-input");
             const pinIndicators = document.getElementById("pin-indicators");
             const errorBanner = document.getElementById("error-banner");
@@ -470,6 +528,26 @@
             const btnClear = document.getElementById("btn-clear");
             const btnBackspace = document.getElementById("btn-backspace");
 
+            function setRole(role) {
+                selectedRole = role;
+                if (role === "admin") {
+                    tabAdmin.classList.add("active");
+                    tabCashier.classList.remove("active");
+                    roleInfoText.innerHTML = '<i class="fa-solid fa-circle-info"></i> Admin: Dashboard, POS, Menu, Bulk Billing';
+                    btnText.innerHTML = '<i class="fa-solid fa-unlock-keyhole"></i> Unlock Admin Access';
+                } else {
+                    tabCashier.classList.add("active");
+                    tabAdmin.classList.remove("active");
+                    roleInfoText.innerHTML = '<i class="fa-solid fa-circle-info"></i> Cashier: Direct Access to Quick POS Billing';
+                    btnText.innerHTML = '<i class="fa-solid fa-cash-register"></i> Open Quick POS';
+                }
+                clearPin();
+                hiddenInput.focus();
+            }
+
+            tabAdmin.addEventListener("click", () => setRole("admin"));
+            tabCashier.addEventListener("click", () => setRole("cashier"));
+
             function updateSlots() {
                 for (let i = 0; i < 4; i++) {
                     const slot = document.getElementById(`slot-${i}`);
@@ -477,20 +555,13 @@
 
                     if (i < currentPin.length) {
                         slot.classList.add("filled");
-                        if (isMasked) {
-                            slot.textContent = "●";
-                            slot.classList.remove("masked-dot");
-                        } else {
-                            slot.textContent = currentPin[i];
-                            slot.classList.remove("masked-dot");
-                        }
+                        slot.textContent = isMasked ? "●" : currentPin[i];
                     } else {
-                        slot.classList.remove("filled", "masked-dot");
+                        slot.classList.remove("filled");
                         slot.textContent = "";
                     }
                 }
 
-                // Hide error when user modifies PIN
                 if (errorBanner.style.display === "flex") {
                     errorBanner.style.display = "none";
                     pinIndicators.classList.remove("error");
@@ -504,8 +575,7 @@
                     updateSlots();
 
                     if (currentPin.length === maxPinLength) {
-                        // Automatically attempt submit when 4 digits are entered
-                        setTimeout(submitPin, 150);
+                        setTimeout(submitPin, 120);
                     }
                 }
             }
@@ -534,6 +604,9 @@
                 btnText.style.display = "none";
                 btnSpinner.style.display = "inline-block";
 
+                const urlParams = new URLSearchParams(window.location.search);
+                const nextUrl = urlParams.get("next") || "";
+
                 try {
                     const res = await fetch("/api/login", {
                         method: "POST",
@@ -541,7 +614,11 @@
                             "Content-Type": "application/json",
                             "Accept": "application/json"
                         },
-                        body: JSON.stringify({ pin: currentPin })
+                        body: JSON.stringify({
+                            pin: currentPin,
+                            role: selectedRole,
+                            next: nextUrl
+                        })
                     });
 
                     const data = await res.json();
@@ -550,7 +627,7 @@
                         btnText.innerHTML = '<i class="fa-solid fa-check"></i> Unlocked!';
                         btnText.style.display = "inline-block";
                         btnSpinner.style.display = "none";
-                        window.location.href = data.redirect || "/";
+                        window.location.href = data.redirect || (selectedRole === "admin" ? "/admin" : "/pos");
                     } else {
                         showError(data.error || "Incorrect PIN. Access denied.");
                         btnSubmit.disabled = false;
@@ -570,18 +647,15 @@
                 errorBanner.style.display = "flex";
                 pinIndicators.classList.add("error");
                 
-                // Shake and reset after delay
                 setTimeout(() => {
                     clearPin();
                     hiddenInput.focus();
                 }, 400);
             }
 
-            // Keypad Event Listeners
             keyButtons.forEach(btn => {
                 btn.addEventListener("click", () => {
-                    const key = btn.getAttribute("data-key");
-                    addDigit(key);
+                    addDigit(btn.getAttribute("data-key"));
                 });
             });
 
@@ -589,18 +663,12 @@
             btnBackspace.addEventListener("click", removeDigit);
             btnSubmit.addEventListener("click", submitPin);
 
-            // Toggle Mask/Unmask
             btnToggleMask.addEventListener("click", () => {
                 isMasked = !isMasked;
-                if (isMasked) {
-                    toggleIcon.className = "fa-solid fa-eye";
-                } else {
-                    toggleIcon.className = "fa-solid fa-eye-slash";
-                }
+                toggleIcon.className = isMasked ? "fa-solid fa-eye" : "fa-solid fa-eye-slash";
                 updateSlots();
             });
 
-            // Focus and Keyboard Input Handling
             pinIndicators.addEventListener("click", () => {
                 hiddenInput.focus();
             });
@@ -617,7 +685,6 @@
                 }
             });
 
-            // Initial focus
             window.addEventListener("DOMContentLoaded", () => {
                 hiddenInput.focus();
             });

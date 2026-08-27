@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Dashboard — Hotel Mitraya</title>
+    
+    <meta name="theme-color" content="#0a1017">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <link rel="stylesheet" href="/static/pos.css?v=2.1">
+    <link rel="stylesheet" href="/static/receipt.css?v=2.1">
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="pos-header">
+        <div class="pos-header-inner">
+            <a href="/admin" class="brand-section">
+                <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="brand-logo-img">
+                <div class="brand-info">
+                    <h1>HOTEL MITRAYA</h1>
+                    <span class="brand-tag"><i class="fa-solid fa-gauge-high"></i> Admin Portal</span>
+                </div>
+            </a>
+
+            <div class="header-nav">
+                <a href="/pos" class="nav-link-btn" title="Open Quick POS">
+                    <i class="fa-solid fa-cash-register"></i>
+                    <span>Quick POS</span>
+                </a>
+                <a href="/admin/menu" class="nav-link-btn" title="Manage Menu">
+                    <i class="fa-solid fa-utensils"></i>
+                    <span>Menu</span>
+                </a>
+                <a href="/admin/reports" class="nav-link-btn" title="Sales Reports & History">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="/" class="nav-link-btn btn-bulk-highlight" title="Bulk / Institution Billing">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <span>Bulk Billing</span>
+                </a>
+
+                <div class="user-badge">
+                    <span class="role-pill admin">ADMIN</span>
+                    <span>{{ user_name }}</span>
+                </div>
+
+                <button type="button" class="nav-link-btn" id="btn-logout" title="Logout">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Container -->
+    <main class="admin-container">
+        
+        <!-- Hero Section -->
+        <div class="dashboard-hero">
+            <div class="hero-title">
+                <h2>Welcome to Management Dashboard</h2>
+                <p>Monitor real-time sales, manage menus, configure cashier access, and handle bulk billing.</p>
+            </div>
+            <div>
+                <button type="button" class="nav-link-btn" id="btn-open-pin-modal" style="background: rgba(56, 189, 248, 0.15); border-color: var(--accent-primary);">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Security PIN Settings</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Real-Time Sales Summary (KPI Cards) -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon green"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                <div class="kpi-data">
+                    <div class="kpi-label">Today's POS Sales</div>
+                    <div class="kpi-val" id="kpi-today-sales">₹0.00</div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon blue"><i class="fa-solid fa-receipt"></i></div>
+                <div class="kpi-data">
+                    <div class="kpi-label">Today's POS Bills</div>
+                    <div class="kpi-val" id="kpi-today-bills">0</div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon purple"><i class="fa-solid fa-qrcode"></i></div>
+                <div class="kpi-data">
+                    <div class="kpi-label">UPI / Online Sales</div>
+                    <div class="kpi-val" id="kpi-today-upi">₹0.00</div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon gold"><i class="fa-solid fa-money-bill-wave"></i></div>
+                <div class="kpi-data">
+                    <div class="kpi-label">Cash In Register</div>
+                    <div class="kpi-val" id="kpi-today-cash">₹0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Access Action Hub -->
+        <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 14px; letter-spacing: -0.3px;">Operations &amp; Billing Hub</h3>
+        <div class="admin-hub-grid">
+            
+            <!-- Quick POS Card -->
+            <a href="/pos" class="hub-card">
+                <div class="hub-icon"><i class="fa-solid fa-cash-register"></i></div>
+                <div class="hub-title">Quick POS Billing</div>
+                <div class="hub-desc">High-speed counter billing for normal walk-in dining and takeaways. Instant 80mm thermal receipt printing.</div>
+            </a>
+
+            <!-- Bulk / Institution Billing Card -->
+            <a href="/" class="hub-card bulk-highlight-card">
+                <div class="hub-icon"><i class="fa-solid fa-building-columns"></i></div>
+                <div class="hub-title">Bulk / Institution Billing</div>
+                <div class="hub-desc">Full A4 format invoice generator for institutions, caterers, companies, and large hospitality orders.</div>
+            </a>
+
+            <!-- Menu Management Card -->
+            <a href="/admin/menu" class="hub-card">
+                <div class="hub-icon" style="color: var(--accent-gold);"><i class="fa-solid fa-utensils"></i></div>
+                <div class="hub-title">Menu Management</div>
+                <div class="hub-desc">Add/edit categories, update item prices, toggle dish availability, and configure display order.</div>
+            </a>
+
+            <!-- Sales Reports Card -->
+            <a href="/admin/reports" class="hub-card">
+                <div class="hub-icon" style="color: var(--accent-emerald);"><i class="fa-solid fa-chart-pie"></i></div>
+                <div class="hub-title">Sales Analytics &amp; Bills</div>
+                <div class="hub-desc">Inspect daily revenue, breakdown by payment modes (CASH/UPI/CARD), top-selling dishes, and reprints.</div>
+            </a>
+
+        </div>
+
+        <!-- Recent Bills Table -->
+        <div class="table-card">
+            <div class="table-header">
+                <div>
+                    <h3 style="font-size: 15px; font-weight: 800;"><i class="fa-solid fa-clock-rotate-left"></i> Recent Walk-In POS Bills</h3>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Latest bills generated from POS counters</p>
+                </div>
+                <a href="/admin/reports" class="nav-link-btn" style="font-size: 12px;">View All Bills &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Bill #</th>
+                            <th>Time</th>
+                            <th>Items Count</th>
+                            <th>Payment Mode</th>
+                            <th>Total Amount</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboard-recent-bills-tbody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 25px; color: var(--text-muted);">Loading bills...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- PIN Management Modal -->
+    <div class="modal-overlay" id="pin-modal">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-shield-halved"></i> Update Security PINs</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-pin-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="pin-change-form" onsubmit="event.preventDefault();">
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Select Role to Update</label>
+                            <select id="pin-target-role" class="search-input" style="padding: 10px 14px;">
+                                <option value="cashier">Cashier PIN (Counter Staff)</option>
+                                <option value="admin">Admin PIN (Master Access)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">New Numeric PIN (4 to 8 digits)</label>
+                            <input type="password" id="pin-new-val" class="search-input" placeholder="e.g. 1234 or 2005" maxlength="8" required>
+                        </div>
+
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Confirm New PIN</label>
+                            <input type="password" id="pin-confirm-val" class="search-input" placeholder="Re-enter new PIN" maxlength="8" required>
+                        </div>
+
+                        <div id="pin-modal-error" style="display: none; color: var(--accent-rose); font-size: 13px; font-weight: 600;"></div>
+                        <div id="pin-modal-success" style="display: none; color: var(--accent-emerald); font-size: 13px; font-weight: 600;"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="nav-link-btn" id="btn-cancel-pin-modal">Cancel</button>
+                <button type="button" class="btn-checkout" id="btn-save-pin" style="width: auto; padding: 10px 22px;">
+                    <i class="fa-solid fa-check"></i> Save New PIN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 80mm Thermal Receipt Modal & Print Area -->
+    <div class="modal-overlay" id="receipt-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-print"></i> Thermal Receipt Preview</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-receipt-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="background: #e2e8f0; display: flex; justify-content: center; padding: 15px;">
+                <div id="receipt-print-area" class="receipt-container">
+                    <div class="receipt-header">
+                        <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="receipt-logo">
+                        <div class="receipt-title">HOTEL MITRAYA</div>
+                        <div class="receipt-subtitle">Pure Veg Restaurant &amp; Caterers</div>
+                        <div class="receipt-meta">Dharmaraj chowk Nr. Honda Showroom, Akurdi, Pune - 411035</div>
+                        <div class="receipt-meta">Ph: +91 9158691003</div>
+                        <div class="receipt-meta" style="font-weight: 700;">FSSAI Lic No: 21525037001433</div>
+                    </div>
+
+                    <div class="receipt-info-row">
+                        <span id="rcpt-bill-no">Bill: POS-000001</span>
+                        <span id="rcpt-date">27/08/2026</span>
+                    </div>
+                    <div class="receipt-info-row">
+                        <span id="rcpt-cashier">Staff: Admin</span>
+                        <span id="rcpt-mode">Mode: CASH</span>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <table class="receipt-table">
+                        <thead>
+                            <tr>
+                                <th class="col-item">Item</th>
+                                <th class="col-qty">Qty</th>
+                                <th class="col-rate">Rate</th>
+                                <th class="col-amt">Amt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rcpt-items-body"></tbody>
+                    </table>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="receipt-summary">
+                        <div class="receipt-summary-row">
+                            <span>Sub Total:</span>
+                            <span id="rcpt-subtotal">₹0.00</span>
+                        </div>
+                        <div class="receipt-summary-row" id="rcpt-discount-row">
+                            <span>Discount:</span>
+                            <span id="rcpt-discount">-₹0.00</span>
+                        </div>
+                        <div class="receipt-divider-solid"></div>
+                        <div class="receipt-summary-row grand-total">
+                            <span>TOTAL AMOUNT:</span>
+                            <span id="rcpt-total">₹0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-barcode">* <span id="rcpt-barcode-text">POS-000001</span> *</div>
+
+                    <div class="receipt-footer">
+                        Thank You! Visit Again.<br>
+                        Have a Delicious Day!
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="nav-link-btn" id="btn-dismiss-receipt">Close</button>
+                <button type="button" class="btn-checkout" id="btn-print-receipt" style="width: auto; padding: 10px 20px;">
+                    <i class="fa-solid fa-print"></i> Print (80mm)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        (function() {
+            "use strict";
+
+            function formatMoney(amount) {
+                return "₹" + Number(amount || 0).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function showToast(msg, type = "success") {
+                const c = document.getElementById("toast-container");
+                if (!c) return;
+                const t = document.createElement("div");
+                t.className = `toast ${type}`;
+                t.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> <span>${msg}</span>`;
+                c.appendChild(t);
+                setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 250); }, 3000);
+            }
+
+            // Load Sales Summary
+            async function loadSummary() {
+                try {
+                    const res = await fetch("/api/admin/reports/summary");
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        const today = data.today;
+                        document.getElementById("kpi-today-sales").textContent = formatMoney(today.total_sales);
+                        document.getElementById("kpi-today-bills").textContent = today.bills_count;
+                        document.getElementById("kpi-today-upi").textContent = formatMoney(today.upi_sales);
+                        document.getElementById("kpi-today-cash").textContent = formatMoney(today.cash_sales);
+                    }
+                } catch (e) {
+                    console.error("Summary load error:", e);
+                }
+            }
+
+            // Load Recent Bills
+            async function loadRecentBills() {
+                try {
+                    const res = await fetch("/api/admin/pos-bills");
+                    const data = await res.json();
+                    const tbody = document.getElementById("dashboard-recent-bills-tbody");
+                    if (res.ok && data.success) {
+                        tbody.innerHTML = "";
+                        if (!data.bills || data.bills.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: var(--text-muted);">No POS bills recorded yet today.</td></tr>`;
+                            return;
+                        }
+
+                        data.bills.slice(0, 8).forEach(b => {
+                            const tr = document.createElement("tr");
+                            tr.innerHTML = `
+                                <td><strong>${b.bill_number}</strong></td>
+                                <td>${b.created_at || "-"}</td>
+                                <td>${b.items_count} items</td>
+                                <td><span class="badge-tag ${b.payment_mode.toLowerCase()}">${b.payment_mode}</span></td>
+                                <td><strong style="color:var(--accent-emerald); font-family:'JetBrains Mono'">${formatMoney(b.total_amount)}</strong></td>
+                                <td>
+                                    <button type="button" class="nav-link-btn btn-reprint" data-bill-id="${b.id}" style="padding: 4px 10px; font-size: 11px;">
+                                        <i class="fa-solid fa-print"></i> Reprint
+                                    </button>
+                                </td>
+                            `;
+                            tr.querySelector(".btn-reprint").addEventListener("click", () => reprintBill(b.id));
+                            tbody.appendChild(tr);
+                        });
+                    }
+                } catch (e) {
+                    console.error("Recent bills load error:", e);
+                }
+            }
+
+            // Reprint Bill
+            async function reprintBill(billId) {
+                try {
+                    const res = await fetch(`/api/pos/bills/${billId}`);
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        const bill = data.bill;
+                        document.getElementById("rcpt-bill-no").textContent = `Bill: ${bill.bill_number}`;
+                        document.getElementById("rcpt-date").textContent = bill.created_at || "";
+                        document.getElementById("rcpt-cashier").textContent = `Staff: ${bill.cashier_role || "Staff"}`;
+                        document.getElementById("rcpt-mode").textContent = `Mode: ${bill.payment_mode}`;
+
+                        const tbody = document.getElementById("rcpt-items-body");
+                        tbody.innerHTML = "";
+                        bill.items.forEach(i => {
+                            const tr = document.createElement("tr");
+                            tr.innerHTML = `<td>${i.item_name}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${i.unit_price}</td><td style="text-align:right">${i.total_price.toFixed(2)}</td>`;
+                            tbody.appendChild(tr);
+                        });
+
+                        document.getElementById("rcpt-subtotal").textContent = formatMoney(bill.subtotal);
+                        const discRow = document.getElementById("rcpt-discount-row");
+                        if (bill.discount > 0) {
+                            discRow.style.display = "flex";
+                            document.getElementById("rcpt-discount").textContent = `-${formatMoney(bill.discount)}`;
+                        } else {
+                            discRow.style.display = "none";
+                        }
+                        document.getElementById("rcpt-total").textContent = formatMoney(bill.total_amount);
+                        document.getElementById("rcpt-barcode-text").textContent = bill.bill_number;
+
+                        document.getElementById("receipt-modal").classList.add("active");
+                    }
+                } catch (e) {
+                    showToast("Error fetching bill details", "error");
+                }
+            }
+
+            // PIN Modal
+            const pinModal = document.getElementById("pin-modal");
+            document.getElementById("btn-open-pin-modal").addEventListener("click", () => pinModal.classList.add("active"));
+            document.getElementById("btn-close-pin-modal").addEventListener("click", () => pinModal.classList.remove("active"));
+            document.getElementById("btn-cancel-pin-modal").addEventListener("click", () => pinModal.classList.remove("active"));
+
+            document.getElementById("btn-save-pin").addEventListener("click", async () => {
+                const targetRole = document.getElementById("pin-target-role").value;
+                const newPin = document.getElementById("pin-new-val").value.trim();
+                const confirmPin = document.getElementById("pin-confirm-val").value.trim();
+                const errDiv = document.getElementById("pin-modal-error");
+                const succDiv = document.getElementById("pin-modal-success");
+
+                errDiv.style.display = "none";
+                succDiv.style.display = "none";
+
+                if (!newPin || newPin.length < 4) {
+                    errDiv.textContent = "PIN must be at least 4 digits.";
+                    errDiv.style.display = "block";
+                    return;
+                }
+                if (newPin !== confirmPin) {
+                    errDiv.textContent = "New PIN and confirmation do not match.";
+                    errDiv.style.display = "block";
+                    return;
+                }
+
+                try {
+                    const res = await fetch("/api/admin/users/change-pin", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ role: targetRole, new_pin: newPin })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        succDiv.textContent = data.message;
+                        succDiv.style.display = "block";
+                        showToast(data.message, "success");
+                        setTimeout(() => {
+                            pinModal.classList.remove("active");
+                            document.getElementById("pin-new-val").value = "";
+                            document.getElementById("pin-confirm-val").value = "";
+                            succDiv.style.display = "none";
+                        }, 1200);
+                    } else {
+                        errDiv.textContent = data.error || "Failed to update PIN";
+                        errDiv.style.display = "block";
+                    }
+                } catch (e) {
+                    errDiv.textContent = "Network error updating PIN";
+                    errDiv.style.display = "block";
+                }
+            });
+
+            // Receipt Modal
+            const receiptModal = document.getElementById("receipt-modal");
+            document.getElementById("btn-close-receipt-modal").addEventListener("click", () => receiptModal.classList.remove("active"));
+            document.getElementById("btn-dismiss-receipt").addEventListener("click", () => receiptModal.classList.remove("active"));
+            document.getElementById("btn-print-receipt").addEventListener("click", () => window.print());
+
+            // Logout
+            document.getElementById("btn-logout").addEventListener("click", async () => {
+                await fetch("/api/logout", { method: "POST" });
+                window.location.href = "/login";
+            });
+
+            // Init
+            loadSummary();
+            loadRecentBills();
+        })();
+    </script>
+</body>
+</html>

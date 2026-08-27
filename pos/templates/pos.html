@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quick POS — Hotel Mitraya</title>
+
+    <!-- Meta tags -->
+    <meta name="theme-color" content="#0a1017">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- POS & Receipt Stylesheets -->
+    <link rel="stylesheet" href="/static/pos.css?v=2.1">
+    <link rel="stylesheet" href="/static/receipt.css?v=2.1">
+</head>
+
+<body>
+
+    <!-- Header Navigation -->
+    <header class="pos-header">
+        <div class="pos-header-inner">
+            <a href="/pos" class="brand-section">
+                <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="brand-logo-img">
+                <div class="brand-info">
+                    <h1>HOTEL MITRAYA</h1>
+                    <span class="brand-tag"><i class="fa-solid fa-bolt"></i> Quick POS</span>
+                </div>
+            </a>
+
+            <!-- Keyboard shortcut hint bar on desktop/laptop -->
+            <div class="desktop-shortcut-bar" id="desktop-shortcut-bar">
+                <span class="shortcut-item"><kbd>F2</kbd> Search</span>
+                <span class="shortcut-item"><kbd>F4</kbd> Cash Tender</span>
+                <span class="shortcut-item"><kbd>F8</kbd> Mode</span>
+                <span class="shortcut-item"><kbd>Ctrl+↵</kbd> Print Bill</span>
+                <span class="shortcut-item"><kbd>F10</kbd> Clear</span>
+            </div>
+
+            <div class="header-nav">
+                <button type="button" class="nav-link-btn" id="btn-open-shortcuts-modal" title="Keyboard Shortcuts Guide">
+                    <i class="fa-regular fa-keyboard"></i>
+                    <span class="hide-on-mobile">Keys</span>
+                </button>
+
+                <button type="button" class="nav-link-btn" id="btn-open-recent-bills" title="View Recent Bills (F3)">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span class="hide-on-mobile">Recent Bills</span>
+                </button>
+
+                {% if user_role == 'admin' %}
+                <a href="/admin" class="nav-link-btn" title="Admin Dashboard">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span class="hide-on-mobile">Dashboard</span>
+                </a>
+                <a href="/" class="nav-link-btn btn-bulk-highlight" title="Bulk / Institution Billing">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <span class="hide-on-mobile">Bulk Billing</span>
+                </a>
+                {% endif %}
+
+                <div class="user-badge hide-on-mobile">
+                    <span class="role-pill {{ user_role }}">{{ user_role }}</span>
+                    <span>{{ user_name }}</span>
+                </div>
+
+                <button type="button" class="nav-link-btn btn-danger-hover" id="btn-logout" title="Lock System / Logout">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main POS Grid Interface -->
+    <main class="pos-layout">
+
+        <!-- Left Column: Menu Catalog & Items -->
+        <section class="catalog-pane">
+            <!-- Search & Filters -->
+            <div class="catalog-search-bar">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="item-search-input" class="search-input"
+                        placeholder="Search dishes (Press 'F2' or '/' to focus)..." autocomplete="off">
+                    <span class="search-kbd-hint"><kbd>F2</kbd></span>
+                </div>
+            </div>
+
+            <!-- Categories Horizontal Bar -->
+            <div class="category-pills-container" id="category-pills-bar">
+                <button type="button" class="category-pill active" data-cat-id="all">All Items</button>
+                <!-- Dynamically rendered categories -->
+            </div>
+
+            <!-- Food Items Grid -->
+            <div class="menu-grid-scroll">
+                <div class="menu-grid" id="menu-items-grid">
+                    <!-- Loaded dynamically via JavaScript -->
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                        <p style="margin-top: 10px;">Loading Hotel Mitraya menu...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Cart & Checkout (Drawer on Mobile, Sidebar on Laptop) -->
+        <section class="cart-pane" id="pos-cart-pane">
+            <div class="cart-header">
+                <button type="button" class="mobile-back-to-menu-btn" id="btn-mobile-close-cart" title="Back to Menu">
+                    <i class="fa-solid fa-arrow-left"></i> Menu
+                </button>
+                <div class="cart-title-group">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>Current Order</span>
+                    <span class="cart-items-count-badge" id="cart-count-badge">0</span>
+                </div>
+                <button type="button" class="btn-clear-cart" id="btn-clear-cart" title="Clear all items (F10)">
+                    <i class="fa-solid fa-trash-can"></i> <span class="hide-on-mobile">Clear</span> <kbd class="kbd-mini hide-on-mobile">F10</kbd>
+                </button>
+            </div>
+
+            <!-- Items in Cart -->
+            <div class="cart-items-scroll" id="cart-items-list">
+                <div class="cart-empty-state">
+                    <i class="fa-solid fa-utensils"></i>
+                    <p>No items added yet.<br><small>Click on any dish card to add to order.</small></p>
+                </div>
+            </div>
+
+            <!-- Order Financials & Payment -->
+            <div class="cart-footer">
+                <div class="calc-row">
+                    <span>Subtotal:</span>
+                    <span class="val" id="cart-subtotal">₹0.00</span>
+                </div>
+
+                <div class="calc-row discount-row">
+                    <span>Discount (₹): <kbd class="kbd-mini hide-on-mobile">F7</kbd></span>
+                    <input type="number" id="cart-discount-input" min="0" value="0" placeholder="0">
+                </div>
+
+                <div class="calc-row net-total-row">
+                    <span>Net Payable:</span>
+                    <span class="val" id="cart-net-total">₹0.00</span>
+                </div>
+
+                <!-- Payment Mode Selector -->
+                <div class="payment-mode-tabs">
+                    <button type="button" class="pm-tab-btn active" data-mode="CASH" title="Cash (Alt+1)">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                        <span>CASH</span>
+                        <kbd class="kbd-mini hide-on-mobile">Alt+1</kbd>
+                    </button>
+                    <button type="button" class="pm-tab-btn" data-mode="UPI" title="UPI / QR (Alt+2)">
+                        <i class="fa-solid fa-qrcode"></i>
+                        <span>UPI / QR</span>
+                        <kbd class="kbd-mini hide-on-mobile">Alt+2</kbd>
+                    </button>
+                    <button type="button" class="pm-tab-btn" data-mode="CARD" title="Card (Alt+3)">
+                        <i class="fa-solid fa-credit-card"></i>
+                        <span>CARD</span>
+                        <kbd class="kbd-mini hide-on-mobile">Alt+3</kbd>
+                    </button>
+                </div>
+
+                <!-- Cash Tender & Change Helper (Visible when CASH is selected) -->
+                <div class="cash-tender-box" id="cash-tender-container">
+                    <div class="tender-quick-buttons">
+                        <button type="button" class="quick-cash-btn" id="btn-exact-cash">Exact</button>
+                        <button type="button" class="quick-cash-btn" data-val="50">₹50</button>
+                        <button type="button" class="quick-cash-btn" data-val="100">₹100</button>
+                        <button type="button" class="quick-cash-btn" data-val="200">₹200</button>
+                        <button type="button" class="quick-cash-btn" data-val="500">₹500</button>
+                    </div>
+                    <div class="tender-inputs-row">
+                        <div style="position: relative; flex: 1;">
+                            <input type="number" id="cash-received-input" class="tender-input-field"
+                                placeholder="Cash Received (F4)">
+                            <span class="field-kbd-hint"><kbd>F4</kbd></span>
+                        </div>
+                        <div class="change-display-badge" id="change-display">Change: ₹0.00</div>
+                    </div>
+                </div>
+
+                <!-- Complete & Print Action Button -->
+                <button type="button" class="btn-checkout" id="btn-checkout-order" title="Charge & Print (Ctrl+Enter / F9)">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span id="btn-checkout-text">Charge ₹0.00 &amp; Print</span>
+                    <kbd class="kbd-checkout hide-on-mobile">Ctrl+↵</kbd>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Mobile Floating Bottom Bar for Fast Cart Access -->
+    <div class="mobile-cart-bar" id="mobile-cart-bar">
+        <div class="mobile-cart-bar-info">
+            <div class="mobile-cart-count-pill"><i class="fa-solid fa-bag-shopping"></i> <span id="mobile-cart-count">0 items</span></div>
+            <div class="mobile-cart-total" id="mobile-cart-total">₹0.00</div>
+        </div>
+        <button type="button" class="mobile-view-cart-btn" id="btn-open-mobile-cart">
+            <span>View Order / Pay</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+
+    <!-- 80mm Thermal Receipt Modal & Print Area -->
+    <div class="modal-overlay" id="receipt-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-print"></i> Thermal Receipt Preview (80mm)</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-receipt-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="background: #e2e8f0; display: flex; justify-content: center; padding: 15px;">
+
+                <!-- Printable 80mm Section -->
+                <div id="receipt-print-area" class="receipt-container">
+                    <div class="receipt-header">
+                        <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="receipt-logo">
+                        <div class="receipt-title">HOTEL MITRAYA</div>
+                        <div class="receipt-subtitle">Pure Veg Restaurant &amp; Caterers</div>
+                        <div class="receipt-meta">Dharmaraj chowk Nr. Honda Showroom, Akurdi, Pune - 411035</div>
+                        <div class="receipt-meta">Ph: +91 9158691003</div>
+                        <div class="receipt-meta" style="font-weight: 700;">FSSAI Lic No: 21525037001433</div>
+                    </div>
+
+                    <div class="receipt-info-row">
+                        <span id="rcpt-bill-no">Bill: POS-000001</span>
+                        <span id="rcpt-date">27/08/2026 02:30 PM</span>
+                    </div>
+                    <div class="receipt-info-row">
+                        <span id="rcpt-cashier">Cashier: Staff</span>
+                        <span id="rcpt-mode">Mode: CASH</span>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <table class="receipt-table">
+                        <thead>
+                            <tr>
+                                <th class="col-item">Item</th>
+                                <th class="col-qty">Qty</th>
+                                <th class="col-rate">Rate</th>
+                                <th class="col-amt">Amt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rcpt-items-body">
+                            <!-- Injected -->
+                        </tbody>
+                    </table>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="receipt-summary">
+                        <div class="receipt-summary-row">
+                            <span>Sub Total:</span>
+                            <span id="rcpt-subtotal">₹0.00</span>
+                        </div>
+                        <div class="receipt-summary-row" id="rcpt-discount-row">
+                            <span>Discount:</span>
+                            <span id="rcpt-discount">-₹0.00</span>
+                        </div>
+                        <div class="receipt-divider-solid"></div>
+                        <div class="receipt-summary-row grand-total">
+                            <span>TOTAL AMOUNT:</span>
+                            <span id="rcpt-total">₹0.00</span>
+                        </div>
+                        <div class="receipt-divider-solid"></div>
+                        <div class="receipt-summary-row" id="rcpt-tender-row">
+                            <span>Cash Tendered:</span>
+                            <span id="rcpt-tendered">₹0.00</span>
+                        </div>
+                        <div class="receipt-summary-row" id="rcpt-change-row">
+                            <span>Change Due:</span>
+                            <span id="rcpt-change">₹0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-barcode">* <span id="rcpt-barcode-text">POS-000001</span> *</div>
+
+                    <div class="receipt-footer">
+                        Thank You! Visit Again.<br>
+                        Have a Delicious Day!
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="nav-link-btn" id="btn-dismiss-receipt">Close</button>
+                <button type="button" class="btn-checkout" id="btn-print-receipt"
+                    style="width: auto; padding: 10px 20px;">
+                    <i class="fa-solid fa-print"></i> Print (80mm)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Bills Drawer Modal -->
+    <div class="modal-overlay" id="recent-bills-modal">
+        <div class="modal-box" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> Today's Recent POS Bills</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-recent-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Bill #</th>
+                                <th>Time</th>
+                                <th>Items</th>
+                                <th>Mode</th>
+                                <th>Total</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-bills-table-body">
+                            <!-- Injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="nav-link-btn" id="btn-close-recent-modal-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Help Modal -->
+    <div class="modal-overlay" id="shortcuts-modal">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fa-regular fa-keyboard"></i> Laptop Billing Shortcuts</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-shortcuts-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="shortcuts-grid">
+                    <div class="shortcut-row">
+                        <kbd>F2</kbd> or <kbd>/</kbd>
+                        <span>Focus Item Search bar</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>Enter</kbd> (in search)
+                        <span>Add first matching dish to Cart</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>F4</kbd>
+                        <span>Focus Cash Received tender input</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>F7</kbd>
+                        <span>Focus Discount input</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>F8</kbd>
+                        <span>Cycle Payment Mode (CASH / UPI / CARD)</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>Alt + 1 / 2 / 3</kbd>
+                        <span>Select Cash (1), UPI (2), or Card (3)</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>Ctrl + Enter</kbd> or <kbd>F9</kbd>
+                        <span>Charge Order &amp; Print 80mm Thermal Receipt</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>F3</kbd>
+                        <span>Open Recent Bills &amp; Reprints</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>F10</kbd>
+                        <span>Clear current cart</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>Esc</kbd>
+                        <span>Close popups / dialogs</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-checkout" id="btn-dismiss-shortcuts" style="width: auto; padding: 8px 18px;">Got It</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/static/pos.js?v=2.1"></script>
+</body>
+
+</html>

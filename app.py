@@ -14,6 +14,10 @@ from flask_cors import CORS
 from generate_bill_docx import generate_bill_pdf, sanitize_filename
 
 import tempfile
+from database.db import init_db
+from auth.routes import auth_bp
+from admin.routes import admin_bp
+from pos.routes import pos_bp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # In serverless environments like Vercel, use /tmp for writing files
@@ -30,6 +34,14 @@ app.secret_key = os.environ.get("SECRET_KEY", "hotel-mitraya-secure-billing-key-
 app.permanent_session_lifetime = timedelta(days=30)
 CORS(app)
 
+# Initialize Relational Database & Seed Data for Quick POS & Users
+init_db()
+
+# Register Blueprints for Modular POS Architecture
+app.register_blueprint(auth_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(pos_bp)
+
 # Hardcoded Access PIN (can also be overridden in Vercel Environment variables as APP_PIN)
 APP_PIN = str(os.environ.get("APP_PIN", "2005")).strip()
 
@@ -37,7 +49,7 @@ APP_PIN = str(os.environ.get("APP_PIN", "2005")).strip()
 @app.before_request
 def require_auth():
     # Public routes allowed without PIN
-    public_endpoints = {"login", "api_login", "health", "static"}
+    public_endpoints = {"login", "api_login", "health", "static", "auth.login_api"}
     if request.endpoint in public_endpoints:
         return None
     if request.path.startswith("/static/") or request.path == "/favicon.ico":
@@ -53,38 +65,36 @@ def require_auth():
             }), 401
         return redirect(url_for("login"))
 
+    # Role-based restriction: Cashier cannot access Admin routes or bulk billing
+    role = session.get("role", "admin")
+    if role == "cashier":
+        if request.path.startswith("/admin") or request.path.startswith("/api/admin"):
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "error": "Access denied. Admin privileges required.", "forbidden": True}), 403
+            return redirect(url_for("pos.pos_view"))
+
 
 @app.route("/login", methods=["GET"])
 def login():
     if session.get("authenticated"):
-        return redirect(url_for("index"))
+        role = session.get("role", "admin")
+        if role == "cashier":
+            return redirect(url_for("pos.pos_view"))
+        return redirect(url_for("admin_bp.admin_dashboard_view"))
     return render_template("login.html")
 
 
-@app.route("/api/login", methods=["POST"])
-def api_login():
-    try:
-        data = request.get_json(silent=True) or request.form.to_dict() or {}
-        entered_pin = str(data.get("pin", "")).strip()
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    return send_from_directory("static", "logo.png", mimetype="image/png")
 
-        if not entered_pin:
-            return jsonify({"success": False, "error": "Please enter your access PIN"}), 400
 
-        if entered_pin == APP_PIN:
-            session.permanent = True
-            session["authenticated"] = True
-            return jsonify({
-                "success": True,
-                "message": "PIN verified successfully. Access granted.",
-                "redirect": "/"
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "error": "Incorrect PIN. Access denied."
-            }), 401
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+@app.route("/bulk", methods=["GET"])
+def bulk_billing():
+    """Bulk / Institution Billing Route (Existing Unchanged System)."""
+    return render_template("index.html")
+
+
 
 
 @app.route("/logout", methods=["GET"])

@@ -8,5 +8,7 @@ venv/
 .venv/
 bills/*.pdf
 !bills/.gitkeep
+*.db
+mitraya_pos.db
 .DS_Store
 Thumbs.db
