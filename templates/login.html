@@ -21,20 +21,23 @@
     
     <style>
         :root {
-            --bg-base: #070d14;
-            --bg-surface: rgba(18, 30, 49, 0.85);
-            --bg-card: rgba(23, 38, 60, 0.9);
-            --border-glow: rgba(56, 189, 248, 0.3);
-            --border-subtle: rgba(255, 255, 255, 0.12);
-            --accent-primary: #38bdf8;
-            --accent-gold: #f59e0b;
-            --accent-emerald: #10b981;
-            --accent-rose: #f43f5e;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --radius-lg: 24px;
-            --radius-md: 14px;
-            --radius-sm: 10px;
+            --bg-main: #f0f4f9;
+            --bg-card: #ffffff;
+            --card-border: rgba(226, 232, 240, 0.9);
+            --border-subtle: #e2e8f0;
+            --brand-navy: #1e3a8a;
+            --brand-navy-dark: #172554;
+            --brand-accent: #2563eb;
+            --brand-emerald: #059669;
+            --brand-crimson: #b91c1c;
+            --brand-gold: #f59e0b;
+            --text-main: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-card: 0 12px 35px -5px rgba(30, 58, 138, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         * {
@@ -46,7 +49,7 @@
         }
 
         body {
-            background: radial-gradient(circle at 50% 10%, #172d47 0%, #0d1b2a 50%, #070d14 100%);
+            background-color: var(--bg-main);
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
@@ -54,47 +57,21 @@
             justify-content: center;
             padding: 20px;
             overflow-x: hidden;
-        }
-
-        .ambient-glow-1 {
-            position: fixed;
-            width: 450px;
-            height: 450px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.14), transparent 70%);
-            top: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .ambient-glow-2 {
-            position: fixed;
-            width: 350px;
-            height: 350px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(245, 158, 11, 0.09), transparent 70%);
-            bottom: -50px;
-            right: 10%;
-            pointer-events: none;
-            z-index: 0;
+            background-image: radial-gradient(at 0% 0%, rgba(30, 58, 138, 0.08) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, rgba(185, 28, 28, 0.06) 0px, transparent 50%);
+            background-attachment: fixed;
         }
 
         .login-card {
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 430px;
-            background: var(--bg-surface);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            max-width: 440px;
+            background: #ffffff;
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-lg);
-            padding: 32px 26px;
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.75),
-                        0 0 0 1px rgba(255, 255, 255, 0.05),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            padding: 34px 28px;
+            box-shadow: var(--shadow-card);
             text-align: center;
             animation: fadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -123,8 +100,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.5),
-                        0 0 0 3px rgba(56, 189, 248, 0.35);
+            box-shadow: 0 8px 20px -3px rgba(30, 58, 138, 0.2);
+            border: 2px solid #bfdbfe;
             overflow: hidden;
             padding: 6px;
             transition: transform 0.2s ease;
@@ -144,7 +121,7 @@
             font-size: 23px;
             font-weight: 800;
             letter-spacing: -0.5px;
-            color: #ffffff;
+            color: var(--brand-navy);
             margin-bottom: 4px;
         }
 
@@ -154,13 +131,13 @@
             gap: 6px;
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 1.2px;
+            letter-spacing: 1px;
             text-transform: uppercase;
-            color: var(--accent-gold);
-            background: rgba(245, 158, 11, 0.12);
+            color: #92400e;
+            background: #fef3c7;
             padding: 4px 10px;
             border-radius: 20px;
-            border: 1px solid rgba(245, 158, 11, 0.25);
+            border: 1px solid #fde68a;
         }
 
         /* Role Selector Tabs */
@@ -172,7 +149,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
-            background: rgba(10, 18, 30, 0.7);
+            background: #f1f5f9;
             padding: 5px;
             border-radius: var(--radius-md);
             border: 1px solid var(--border-subtle);
@@ -186,7 +163,7 @@
             padding: 10px 14px;
             border: none;
             background: transparent;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             font-size: 14px;
             font-weight: 700;
             border-radius: var(--radius-sm);
@@ -199,15 +176,15 @@
         }
 
         .role-tab-btn.active {
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(2, 132, 199, 0.35));
-            color: #ffffff;
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            background: #ffffff;
+            color: var(--brand-navy);
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .role-tab-btn:hover:not(.active) {
             color: var(--text-main);
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.5);
         }
 
         .role-badge-info {
@@ -236,8 +213,8 @@
             align-items: center;
             justify-content: center;
             gap: 12px;
-            background: rgba(10, 18, 30, 0.7);
-            border: 1.5px solid rgba(56, 189, 248, 0.2);
+            background: #f8fafc;
+            border: 1.5px solid #cbd5e1;
             border-radius: var(--radius-md);
             padding: 14px 18px;
             cursor: pointer;
@@ -246,13 +223,14 @@
 
         .pin-indicators:hover,
         .pin-indicators.focused {
-            border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+            border-color: var(--brand-accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            background: #ffffff;
         }
 
         .pin-indicators.error {
-            border-color: var(--accent-rose);
-            box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.2);
+            border-color: var(--brand-crimson);
+            box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.15);
             animation: shake 0.4s ease-in-out;
         }
 
@@ -265,8 +243,8 @@
         .pin-slot {
             width: 44px;
             height: 48px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
             border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
@@ -274,15 +252,15 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 22px;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--text-main);
             transition: all 0.15s ease;
         }
 
         .pin-slot.filled {
-            background: rgba(56, 189, 248, 0.14);
-            border-color: rgba(56, 189, 248, 0.5);
-            color: var(--accent-primary);
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+            background: #eff6ff;
+            border-color: var(--brand-accent);
+            color: var(--brand-navy);
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
         }
 
         .pin-toggle-btn {
@@ -311,9 +289,9 @@
             gap: 8px;
             font-size: 13px;
             font-weight: 600;
-            color: #fecdd3;
-            background: rgba(244, 63, 94, 0.15);
-            border: 1px solid rgba(244, 63, 94, 0.3);
+            color: var(--brand-crimson);
+            background: #fee2e2;
+            border: 1px solid #fecaca;
             border-radius: var(--radius-sm);
             padding: 10px 14px;
             margin-bottom: 16px;
@@ -334,11 +312,11 @@
         }
 
         .key-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
             border-radius: var(--radius-md);
             height: 50px;
-            color: #ffffff;
+            color: var(--text-main);
             font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace;
             font-size: 20px;
             font-weight: 700;
@@ -351,33 +329,34 @@
         }
 
         .key-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.2);
+            background: #eff6ff;
+            border-color: #93c5fd;
+            color: var(--brand-navy);
             transform: translateY(-1px);
         }
 
         .key-btn:active {
             transform: scale(0.95);
-            background: rgba(56, 189, 248, 0.25);
-            border-color: var(--accent-primary);
+            background: #dbeafe;
+            border-color: var(--brand-accent);
         }
 
         .key-btn.key-action {
-            background: rgba(255, 255, 255, 0.02);
+            background: #f1f5f9;
             color: var(--text-muted);
             font-size: 15px;
         }
 
         .key-btn.key-action:hover {
             color: var(--text-main);
-            background: rgba(255, 255, 255, 0.08);
+            background: #e2e8f0;
         }
 
         /* Unlock Button */
         .btn-unlock {
             width: 100%;
             height: 50px;
-            background: linear-gradient(135deg, #0284c7, #0369a1);
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
             color: #ffffff;
             border: none;
             border-radius: var(--radius-md);
@@ -389,14 +368,13 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            box-shadow: 0 8px 20px -4px rgba(2, 132, 199, 0.45),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            box-shadow: 0 6px 20px -3px rgba(37, 99, 235, 0.4);
             transition: all 0.2s ease;
         }
 
         .btn-unlock:hover {
-            background: linear-gradient(135deg, #0369a1, #075985);
-            box-shadow: 0 12px 25px -4px rgba(2, 132, 199, 0.6);
+            background: linear-gradient(135deg, #172554 0%, #1d4ed8 100%);
+            box-shadow: 0 10px 24px -3px rgba(37, 99, 235, 0.5);
             transform: translateY(-1px);
         }
 
@@ -408,6 +386,7 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
 
         .footer-note {
@@ -419,9 +398,6 @@
     </style>
 </head>
 <body>
-    <div class="ambient-glow-1"></div>
-    <div class="ambient-glow-2"></div>
-
     <div class="login-card">
         <!-- Brand Header -->
         <div class="brand-header">
