@@ -1,0 +1,49 @@
+{
+  "name": "Hotel Mitraya POS & Billing",
+  "short_name": "Mitraya POS",
+  "description": "Hotel Mitraya Quick POS, Table Management and Smart Billing App for Waiters and Cashiers",
+  "start_url": "/pos",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a1017",
+  "theme_color": "#0a1017",
+  "icons": [
+    {
+      "src": "/static/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "food", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Quick POS",
+      "short_name": "POS",
+      "description": "Open Quick POS Billing screen",
+      "url": "/pos",
+      "icons": [{ "src": "/static/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Live Kitchen Display",
+      "short_name": "Display",
+      "description": "Open Live Orders & Print Display",
+      "url": "/display",
+      "icons": [{ "src": "/static/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Admin Portal",
+      "short_name": "Admin",
+      "description": "Open Admin Dashboard & Reports",
+      "url": "/admin",
+      "icons": [{ "src": "/static/logo.png", "sizes": "192x192" }]
+    }
+  ]
+}
