@@ -108,9 +108,9 @@ def run_pos_tests():
     # -------------------------------------------------------------
     # 4. POS CHECKOUT & SEQUENTIAL BILL GENERATION
     # -------------------------------------------------------------
-    print("\n[7] Testing POS Checkout with CASH Tender & Change Calculation...")
-    dhapata_item = next(i for i in all_items if "Dahi Dhapata & Biryani" in i["name"] or "Dhapata" in i["name"])
-    chai_item = next(i for i in all_items if "Chai" in i["name"] or "Tea" in i["name"])
+    dhapata_item = next((i for i in all_items if "Dhapata" in i["name"]), all_items[0])
+    chai_item = next((i for i in all_items if "Chai" in i["name"] or "Coffee" in i["name"] or "Tea" in i["name"]), all_items[1])
+
 
     order_payload = {
         "items": [
@@ -283,10 +283,120 @@ def run_pos_tests():
     admin_session.post(f"{BASE_URL}/api/admin/users/change-pin", json={"role": "cashier", "new_pin": "1234"})
     print("    -> OK: Cashier PIN reset back to default '1234'")
 
+    # -------------------------------------------------------------
+    # 11. 12 TABLES RESTAURANT MANAGEMENT & DINING TAB WORKFLOW
+    # -------------------------------------------------------------
+    print("\n[14] Testing 12 Tables Restaurant State API (GET /api/pos/tables)...")
+    r_tables = cashier_session.get(f"{BASE_URL}/api/pos/tables")
+    assert r_tables.status_code == 200
+    tables_data = r_tables.json()
+    assert tables_data["success"] == True
+    assert tables_data["total_tables"] == 12
+    assert len(tables_data["tables"]) == 12
+    print(f"    -> OK: Successfully verified 12 restaurant tables. Vacant: {tables_data['vacant_count']}, Occupied: {tables_data['occupied_count']}")
+
+    print("\n[15] Testing Dining Workflow: Starting Running Tab on Table 4 (save-tab)...")
+    # Get current max_id before saving tab
+    r_live_before = cashier_session.get(f"{BASE_URL}/api/display/live-orders")
+    current_max_event = r_live_before.json().get("max_id", 0)
+
+    r_save_tab = cashier_session.post(f"{BASE_URL}/api/pos/tables/save-tab", json={
+        "table_number": 4,
+        "customer_name": "Sharma Family",
+        "items": [
+            {"menu_item_id": dhapata_item["id"], "name": dhapata_item["name"], "unit_price": dhapata_item["price"], "quantity": 2}
+        ]
+    })
+    assert r_save_tab.status_code == 200
+    tab_res = r_save_tab.json()
+    assert tab_res["success"] == True
+    assert tab_res["bill"]["status"] == "OPEN"
+    assert tab_res["bill"]["order_type"] == "DINING"
+    assert tab_res["bill"]["table_number"] == 4
+    tab_bill_no = tab_res["bill"]["bill_number"]
+    print(f"    -> OK: Table 4 Tab created with status OPEN, Bill #{tab_bill_no}, Subtotal: Rs.{tab_res['bill']['subtotal']}")
+
+    # VERIFY LOOPHOLE FIX: Dining tab creation does NOT emit print events on Display screen
+    r_live_check = cashier_session.get(f"{BASE_URL}/api/display/live-orders?since_id={current_max_event}")
+    assert r_live_check.status_code == 200
+    assert len(r_live_check.json().get("new_bills", [])) == 0, "Loophole detected: OPEN dining tab emitted a print event!"
+    print("    -> OK: Verified NO print event emitted for in-progress dining tab")
+
+    # Verify Table 4 is now OCCUPIED
+    r_table4 = cashier_session.get(f"{BASE_URL}/api/pos/tables/4")
+    assert r_table4.status_code == 200
+    t4_data = r_table4.json()
+    assert t4_data["status"] == "OCCUPIED"
+    assert t4_data["bill"]["bill_number"] == tab_bill_no
+    print("    -> OK: Table 4 verified as OCCUPIED with active running order")
+
+    # Add more food items to Table 4 (e.g. guests ordered chai & dessert while eating)
+    print("\n[16] Testing Incremental Ordering: Adding more dishes to Table 4...")
+    r_add_dishes = cashier_session.post(f"{BASE_URL}/api/pos/tables/save-tab", json={
+        "table_number": 4,
+        "items": [
+            {"menu_item_id": dhapata_item["id"], "name": dhapata_item["name"], "unit_price": dhapata_item["price"], "quantity": 2},
+            {"name": "Special Masala Chai", "unit_price": 20.0, "quantity": 3}
+        ]
+    })
+    assert r_add_dishes.status_code == 200
+    updated_tab = r_add_dishes.json()["bill"]
+    assert len(updated_tab["items"]) == 2
+    expected_subtotal = (dhapata_item["price"] * 2) + (20.0 * 3)
+    assert updated_tab["subtotal"] == expected_subtotal
+    print(f"    -> OK: Table 4 tab updated with additional chai! New total: Rs.{updated_tab['subtotal']}")
+
+    # Settle Table 4 final bill when leaving
+    print("\n[17] Testing Dining Settlement: Final Payment & Table Freeing (POST /api/pos/tables/settle)...")
+    r_settle = cashier_session.post(f"{BASE_URL}/api/pos/tables/settle", json={
+        "table_number": 4,
+        "payment_mode": "UPI",
+        "discount": 10.0
+    })
+    assert r_settle.status_code == 200
+    settled_bill = r_settle.json()["bill"]
+    assert settled_bill["status"] == "COMPLETED"
+    assert settled_bill["discount"] == 10.0
+    assert settled_bill["total_amount"] == expected_subtotal - 10.0
+    assert settled_bill["payment_mode"] == "UPI"
+    print(f"    -> OK: Table 4 settled successfully as COMPLETED (Paid Rs.{settled_bill['total_amount']} via UPI)")
+
+    # VERIFY: Final settlement DOES emit print event on Display screen
+    r_live_settled = cashier_session.get(f"{BASE_URL}/api/display/live-orders?since_id={current_max_event}")
+    assert r_live_settled.status_code == 200
+    new_print_bills = r_live_settled.json().get("new_bills", [])
+    assert len(new_print_bills) >= 1, "Settled bill was not emitted for printing!"
+    assert new_print_bills[0]["bill_number"] == settled_bill["bill_number"]
+    print(f"    -> OK: Print event verified for settled Bill #{settled_bill['bill_number']} on Display screen!")
+
+    # Verify Table 4 is VACANT again
+    r_table4_after = cashier_session.get(f"{BASE_URL}/api/pos/tables/4")
+    assert r_table4_after.status_code == 200
+    assert r_table4_after.json()["status"] == "VACANT"
+    print("    -> OK: Table 4 returned to VACANT status and ready for next guests")
+
+    # -------------------------------------------------------------
+    # 12. DEDICATED DISPLAY & WIRED PRINT SCREEN
+    # -------------------------------------------------------------
+    print("\n[18] Testing Dedicated Display View & Live Order Stream API...")
+    r_display_page = cashier_session.get(f"{BASE_URL}/display")
+    assert r_display_page.status_code == 200
+    assert "Live Kitchen &amp; Wired Thermal Print Station" in r_display_page.text or "Live Kitchen & Wired Thermal Print Station" in r_display_page.text
+    print("    -> OK: /display window loaded successfully")
+
+    r_live_feed = cashier_session.get(f"{BASE_URL}/api/display/live-orders?since_id=0&limit=5")
+    assert r_live_feed.status_code == 200
+    live_data = r_live_feed.json()
+    assert live_data["success"] == True
+    assert len(live_data["bills"]) <= 5
+    print(f"    -> OK: Live display feed returned {len(live_data['bills'])} recent completed orders (Max Event ID: {live_data['max_id']})")
+
+
     print("\n==================================================================")
-    print("ALL 13 QUICK POS, RBAC, AND ADMIN ANALYTICS TESTS PASSED (100% OK)!")
+    print("ALL 18 QUICK POS, RBAC, 12 TABLES, DUAL BILLING & DISPLAY TESTS PASSED (100% OK)!")
     print("==================================================================")
 
 
 if __name__ == "__main__":
     run_pos_tests()
+

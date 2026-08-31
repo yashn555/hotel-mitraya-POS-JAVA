@@ -18,6 +18,11 @@
     let cashReceived = 0;
     let currentFilteredItems = [];
 
+    // Dual Billing & 12 Tables State
+    let orderMode = "WALK_IN"; // "WALK_IN" or "DINING"
+    let selectedTableNumber = 1;
+    let currentTableOrder = null; // Active PosBill on selected table if any
+
     // DOM Elements
     const categoryBar = document.getElementById("category-pills-bar");
     const menuGrid = document.getElementById("menu-items-grid");
@@ -37,6 +42,28 @@
     const quickCashButtons = document.querySelectorAll(".quick-cash-btn[data-val]");
     const btnCheckout = document.getElementById("btn-checkout-order");
     const btnCheckoutText = document.getElementById("btn-checkout-text");
+
+    // Dual Mode & 12 Tables Elements
+    const tabModeWalkin = document.getElementById("tab-mode-walkin");
+    const tabModeDining = document.getElementById("tab-mode-dining");
+    const diningTableBanner = document.getElementById("dining-table-banner");
+    const cartSelectedTableBadge = document.getElementById("cart-selected-table-badge");
+    const cartTableStatusPill = document.getElementById("cart-table-status-pill");
+    const btnChangeTable = document.getElementById("btn-change-table");
+    const diningActionButtons = document.getElementById("dining-action-buttons");
+    const btnSaveTableTab = document.getElementById("btn-save-table-tab");
+    const btnSaveTabText = document.getElementById("btn-save-tab-text");
+    const btnSettleTableTab = document.getElementById("btn-settle-table-tab");
+    const btnSettleTabText = document.getElementById("btn-settle-tab-text");
+    const cartHeadingTitle = document.getElementById("cart-heading-title");
+
+    // Tables Modal Elements
+    const tablesModal = document.getElementById("tables-modal");
+    const btnOpenTablesModal = document.getElementById("btn-open-tables-modal");
+    const btnCloseTablesModal = document.getElementById("btn-close-tables-modal");
+    const btnDismissTablesModal = document.getElementById("btn-dismiss-tables-modal");
+    const modalTablesGrid = document.getElementById("modal-tables-grid");
+    const headerTablesLabel = document.getElementById("header-tables-label");
 
     // Mobile Elements
     const btnOpenMobileCart = document.getElementById("btn-open-mobile-cart");
@@ -435,8 +462,268 @@
         });
     }
 
-    // Checkout Order Submission
+    // =========================================================================
+    // Dual Billing Mode (Walk-in vs Dining) & 12 Tables Management
+    // =========================================================================
+
+    function setOrderMode(mode, loadTab = true) {
+        orderMode = mode;
+        if (mode === "DINING") {
+            tabModeDining.classList.add("active");
+            tabModeWalkin.classList.remove("active");
+            diningTableBanner.style.display = "flex";
+            diningActionButtons.style.display = "flex";
+            btnCheckout.style.display = "none";
+            cartHeadingTitle.textContent = `Table ${selectedTableNumber} Order`;
+            cartSelectedTableBadge.innerHTML = `<i class="fa-solid fa-chair"></i> Table ${selectedTableNumber}`;
+            if (loadTab) {
+                loadTableActiveOrder(selectedTableNumber);
+            }
+        } else {
+            orderMode = "WALK_IN";
+            tabModeWalkin.classList.add("active");
+            tabModeDining.classList.remove("active");
+            diningTableBanner.style.display = "none";
+            diningActionButtons.style.display = "none";
+            btnCheckout.style.display = "flex";
+            cartHeadingTitle.textContent = "Walk-in Order";
+        }
+        updateCartUI();
+    }
+
+    if (tabModeWalkin) {
+        tabModeWalkin.addEventListener("click", () => setOrderMode("WALK_IN"));
+    }
+
+    if (tabModeDining) {
+        tabModeDining.addEventListener("click", () => {
+            setOrderMode("DINING");
+            openTablesModal();
+        });
+    }
+
+    // Load active order on a specific Table (1-12)
+    async function loadTableActiveOrder(tableNo) {
+        try {
+            const res = await fetch(`/api/pos/tables/${tableNo}`);
+            const data = await res.json();
+            if (res.ok && data.success) {
+                if (data.status === "OCCUPIED" && data.bill) {
+                    currentTableOrder = data.bill;
+                    cart = (data.bill.items || []).map(i => ({
+                        item_id: i.menu_item_id,
+                        name: i.item_name,
+                        unit_price: Number(i.unit_price),
+                        quantity: Number(i.quantity)
+                    }));
+                    cartDiscountInput.value = data.bill.discount || 0;
+                    cartTableStatusPill.textContent = `Running Tab (${formatMoney(data.bill.total_amount)})`;
+                    cartTableStatusPill.style.background = "rgba(245, 158, 11, 0.25)";
+                    cartTableStatusPill.style.color = "#fbbf24";
+                    showToast(`Loaded Table ${tableNo} (${cart.length} items)`, "info");
+                } else {
+                    currentTableOrder = null;
+                    cart = [];
+                    discountAmount = 0;
+                    if (cartDiscountInput) cartDiscountInput.value = 0;
+                    if (cashReceivedInput) cashReceivedInput.value = "";
+                    cartTableStatusPill.textContent = "Vacant / New Tab";
+                    cartTableStatusPill.style.background = "rgba(16, 185, 129, 0.2)";
+                    cartTableStatusPill.style.color = "#34d399";
+                }
+                updateCartUI();
+            }
+        } catch (err) {
+            console.error("Error loading table order:", err);
+        }
+    }
+
+
+    // Select Table from Modal
+    function selectTable(tableNo) {
+        selectedTableNumber = tableNo;
+        setOrderMode("DINING", false);
+        loadTableActiveOrder(tableNo);
+        closeTablesModal();
+    }
+
+    // Tables Modal Management
+    async function loadTablesModalData() {
+        try {
+            modalTablesGrid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 30px;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                    <p style="margin-top: 10px;">Loading tables status...</p>
+                </div>`;
+
+            const res = await fetch("/api/pos/tables");
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                modalTablesGrid.innerHTML = "";
+                if (headerTablesLabel) {
+                    headerTablesLabel.textContent = `Tables (${data.occupied_count}/12)`;
+                }
+
+                data.tables.forEach(t => {
+                    const isOcc = t.status === "OCCUPIED";
+                    const isCurrent = orderMode === "DINING" && selectedTableNumber === t.table_number;
+                    const card = document.createElement("div");
+                    card.className = `modal-table-card ${isOcc ? "occupied" : "vacant"} ${isCurrent ? "selected" : ""}`;
+                    card.innerHTML = `
+                        <div class="modal-table-card-num"><i class="fa-solid fa-chair"></i> Table ${t.table_number}</div>
+                        <div class="modal-table-card-status">${isOcc ? "● Occupied" : "● Vacant"}</div>
+                        <div class="modal-table-card-items">${isOcc ? `${t.items_count} items (${t.elapsed_minutes}m)` : "Ready"}</div>
+                        <div class="modal-table-card-total">${isOcc ? formatMoney(t.total_amount) : "₹0.00"}</div>
+                    `;
+                    card.addEventListener("click", () => {
+                        selectTable(t.table_number);
+                    });
+                    modalTablesGrid.appendChild(card);
+                });
+            }
+        } catch (e) {
+            console.error("Error loading tables:", e);
+            modalTablesGrid.innerHTML = `<div style="grid-column:1/-1; color:var(--brand-crimson); text-align:center;">Failed to load tables.</div>`;
+        }
+    }
+
+    function openTablesModal() {
+        loadTablesModalData();
+        if (tablesModal) tablesModal.classList.add("active");
+    }
+
+    function closeTablesModal() {
+        if (tablesModal) tablesModal.classList.remove("active");
+    }
+
+    if (btnOpenTablesModal) btnOpenTablesModal.addEventListener("click", openTablesModal);
+    if (btnChangeTable) btnChangeTable.addEventListener("click", openTablesModal);
+    if (btnCloseTablesModal) btnCloseTablesModal.addEventListener("click", closeTablesModal);
+    if (btnDismissTablesModal) btnDismissTablesModal.addEventListener("click", closeTablesModal);
+
+    // Save Table Tab (Incremental Dining Order)
+    async function saveDiningTableTab() {
+        if (cart.length === 0) {
+            showToast("Cart is empty. Add dishes to Table tab first.", "error");
+            return;
+        }
+
+        btnSaveTableTab.disabled = true;
+        btnSaveTabText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        try {
+            const payload = {
+                table_number: selectedTableNumber,
+                items: cart.map(i => ({
+                    menu_item_id: i.item_id,
+                    name: i.name,
+                    unit_price: i.unit_price,
+                    quantity: i.quantity
+                }))
+            };
+
+            const res = await fetch("/api/pos/tables/save-tab", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                currentTableOrder = data.bill;
+                showToast(`Table ${selectedTableNumber} tab saved! (${data.bill.items_count} items)`, "success");
+                cartTableStatusPill.textContent = `Running Tab (${formatMoney(data.bill.total_amount)})`;
+                cartTableStatusPill.style.background = "rgba(245, 158, 11, 0.25)";
+                cartTableStatusPill.style.color = "#fbbf24";
+                loadTablesModalData();
+            } else {
+                showToast(data.error || "Failed to save table tab", "error");
+            }
+        } catch (err) {
+            console.error("Save tab error:", err);
+            showToast("Network error saving table tab", "error");
+        } finally {
+            btnSaveTableTab.disabled = false;
+            btnSaveTabText.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Save / Add to Table';
+        }
+    }
+
+    if (btnSaveTableTab) {
+        btnSaveTableTab.addEventListener("click", saveDiningTableTab);
+    }
+
+    // Settle Dining Table Tab (Final Checkout & Receipt)
+    async function settleDiningTableTab() {
+        if (cart.length === 0) {
+            showToast("Cart is empty. Nothing to settle.", "error");
+            return;
+        }
+
+        const netTotal = getNetTotal();
+        btnSettleTableTab.disabled = true;
+        btnSettleTabText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Settling...';
+
+        try {
+            const payload = {
+                table_number: selectedTableNumber,
+                items: cart.map(i => ({
+                    menu_item_id: i.item_id,
+                    name: i.name,
+                    unit_price: i.unit_price,
+                    quantity: i.quantity
+                })),
+                discount: discountAmount,
+                payment_mode: paymentMode,
+                received_amount: paymentMode === "CASH" ? (parseFloat(cashReceivedInput.value) || netTotal) : netTotal
+            };
+
+            const res = await fetch("/api/pos/tables/settle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                currentReceiptBill = data.bill;
+                showToast(`Table ${selectedTableNumber} settled! (#${data.bill.bill_number}) Sent to Printer`, "success");
+
+                // Clear Table cart state
+                cart = [];
+                discountAmount = 0;
+                if (cartDiscountInput) cartDiscountInput.value = 0;
+                if (cashReceivedInput) cashReceivedInput.value = "";
+                currentTableOrder = null;
+                cartTableStatusPill.textContent = "Vacant / Settled";
+                cartTableStatusPill.style.background = "rgba(16, 185, 129, 0.2)";
+                cartTableStatusPill.style.color = "#059669";
+                updateCartUI();
+                loadTablesModalData();
+
+            } else {
+                showToast(data.error || "Failed to settle table", "error");
+            }
+        } catch (err) {
+            console.error("Settle error:", err);
+            showToast("Network error settling table", "error");
+        } finally {
+            btnSettleTableTab.disabled = false;
+            btnSettleTabText.innerHTML = '<i class="fa-solid fa-check-double"></i> Settle &amp; Print Bill';
+        }
+    }
+
+    if (btnSettleTableTab) {
+        btnSettleTableTab.addEventListener("click", settleDiningTableTab);
+    }
+
+    // Walk-in Checkout Order Submission
     async function submitOrder() {
+        if (orderMode === "DINING") {
+            settleDiningTableTab();
+            return;
+        }
+
         if (cart.length === 0) {
             showToast("Cart is empty. Add dishes first.", "error");
             return;
@@ -444,6 +731,8 @@
 
         const netTotal = getNetTotal();
         const payload = {
+            order_type: "WALK_IN",
+            table_number: null,
             items: cart.map(i => ({
                 menu_item_id: i.item_id,
                 name: i.name,
@@ -469,13 +758,10 @@
 
             if (res.ok && data.success) {
                 currentReceiptBill = data.bill;
-                showToast(`Order #${data.bill.bill_number} generated!`, "success");
+                showToast(`Order #${data.bill.bill_number} placed! Sent to Display Screen & Printer`, "success");
                 
                 // If on mobile, close drawer
                 if (cartPane) cartPane.classList.remove("mobile-open");
-
-                // Render Thermal Receipt
-                renderThermalReceipt(data.bill);
 
                 // Clear current cart for next customer
                 cart = [];
@@ -483,24 +769,6 @@
                 if (cartDiscountInput) cartDiscountInput.value = 0;
                 if (cashReceivedInput) cashReceivedInput.value = "";
                 updateCartUI();
-
-                // Check if Bluetooth printer is connected and auto-print is enabled
-                if (window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected() && window.MitrayaBluetoothPrinter.isAutoPrintEnabled()) {
-                    try {
-                        await window.MitrayaBluetoothPrinter.printReceipt(data.bill);
-                        showToast(`Printed #${data.bill.bill_number} via Bluetooth!`, "success");
-                    } catch (btErr) {
-                        console.warn("BT auto-print failed, showing receipt modal:", btErr);
-                        showToast("Bluetooth print error. Showing receipt.", "error");
-                        openReceiptModal();
-                    }
-                } else {
-                    // Fallback to thermal receipt preview and window.print()
-                    openReceiptModal();
-                    setTimeout(() => {
-                        window.print();
-                    }, 300);
-                }
 
             } else {
                 showToast(data.error || "Failed to process order", "error");
@@ -519,6 +787,16 @@
     // Thermal Receipt Rendering
     function renderThermalReceipt(bill) {
         currentReceiptBill = bill;
+        const isDining = bill.order_type === "DINING" || (bill.table_number && bill.table_number > 0);
+        const rcptTableEl = document.getElementById("rcpt-table-no");
+        if (rcptTableEl) {
+            rcptTableEl.textContent = isDining ? `TABLE: Table ${bill.table_number}` : "TABLE: Walk-in Counter";
+        }
+        const rcptOrderTypeEl = document.getElementById("rcpt-order-type");
+        if (rcptOrderTypeEl) {
+            rcptOrderTypeEl.textContent = `Type: ${bill.order_type || (isDining ? 'DINING' : 'WALK-IN')}`;
+        }
+
         document.getElementById("rcpt-bill-no").textContent = `Bill: ${bill.bill_number}`;
         document.getElementById("rcpt-date").textContent = bill.created_at || new Date().toLocaleString();
         document.getElementById("rcpt-cashier").textContent = `Staff: ${bill.cashier_role || "Cashier"}`;
@@ -946,6 +1224,7 @@
         loadCatalog();
         updateCartUI();
         initBluetoothPrinterUI();
+        loadTablesModalData();
     }
 
     if (document.readyState === "loading") {
@@ -955,3 +1234,4 @@
     }
 
 })();
+

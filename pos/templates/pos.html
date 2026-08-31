@@ -47,6 +47,18 @@
             </div>
 
             <div class="header-nav">
+                <!-- Live Display & Wired Thermal Printer Screen Button -->
+                <a href="/display" target="_blank" class="nav-link-btn btn-display-screen" id="btn-open-display-screen" title="Open Live Kitchen & Wired Thermal Printer Display Screen">
+                    <i class="fa-solid fa-tv" style="color: #fbbf24;"></i>
+                    <span class="hide-on-mobile" style="color: #fbbf24; font-weight: 700;">Display Screen</span>
+                </a>
+
+                <!-- Tables Overview Modal Trigger Button -->
+                <button type="button" class="nav-link-btn" id="btn-open-tables-modal" title="12 Tables Overview & Selection">
+                    <i class="fa-solid fa-table-cells" style="color: #38bdf8;"></i>
+                    <span id="header-tables-label">Tables (1-12)</span>
+                </button>
+
                 <!-- Bluetooth Printer Status & Connect Button -->
                 <button type="button" class="bt-status-btn" id="btn-bt-printer" title="Bluetooth Thermal Printer Settings">
                     <i class="fa-brands fa-bluetooth"></i>
@@ -131,6 +143,10 @@
                 <i class="fa-solid fa-cash-register"></i>
                 <span>Quick POS Billing</span>
             </a>
+            <a href="/display" target="_blank" class="sidebar-nav-link">
+                <i class="fa-solid fa-tv" style="color: #fbbf24;"></i>
+                <span>Display &amp; Print Screen</span>
+            </a>
             <a href="/admin/menu" class="sidebar-nav-link">
                 <i class="fa-solid fa-utensils"></i>
                 <span>Menu Management</span>
@@ -189,13 +205,38 @@
 
         <!-- Right Column: Cart & Checkout (Drawer on Mobile, Sidebar on Laptop) -->
         <section class="cart-pane" id="pos-cart-pane">
+            <!-- Dual Billing Mode Switcher: Walk-in vs Dining -->
+            <div class="order-mode-switcher-container">
+                <div class="order-mode-tabs">
+                    <button type="button" class="mode-tab-btn active" id="tab-mode-walkin" data-mode="WALK_IN">
+                        <i class="fa-solid fa-person-walking"></i>
+                        <span>Walk-in Customer</span>
+                    </button>
+                    <button type="button" class="mode-tab-btn" id="tab-mode-dining" data-mode="DINING">
+                        <i class="fa-solid fa-utensils"></i>
+                        <span>Dining (12 Tables)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dining Active Table Banner (Visible when Dining Mode is active) -->
+            <div class="dining-table-banner" id="dining-table-banner" style="display: none;">
+                <div class="table-banner-left">
+                    <span class="table-badge" id="cart-selected-table-badge"><i class="fa-solid fa-chair"></i> Table 1</span>
+                    <span class="table-status-pill" id="cart-table-status-pill">New Session</span>
+                </div>
+                <button type="button" class="btn-change-table" id="btn-change-table" title="Switch or Select Table">
+                    <i class="fa-solid fa-arrow-right-arrow-left"></i> Change Table
+                </button>
+            </div>
+
             <div class="cart-header">
                 <button type="button" class="mobile-back-to-menu-btn" id="btn-mobile-close-cart" title="Back to Menu">
                     <i class="fa-solid fa-arrow-left"></i> Menu
                 </button>
                 <div class="cart-title-group">
                     <i class="fa-solid fa-cart-shopping"></i>
-                    <span>Current Order</span>
+                    <span id="cart-heading-title">Current Order</span>
                     <span class="cart-items-count-badge" id="cart-count-badge">0</span>
                 </div>
                 <button type="button" class="btn-clear-cart" id="btn-clear-cart" title="Clear all items (F10)">
@@ -266,16 +307,53 @@
                     </div>
                 </div>
 
-                <!-- Complete & Print Action Button -->
-                <button type="button" class="btn-checkout" id="btn-checkout-order" title="Charge & Print (Ctrl+Enter / F9)">
-                    <i class="fa-solid fa-receipt"></i>
-                    <span id="btn-checkout-text">Charge ₹0.00 &amp; Print</span>
-                    <kbd class="kbd-checkout hide-on-mobile">Ctrl+↵</kbd>
-                </button>
+                <!-- Actions Container: Walk-in vs Dining -->
+                <div class="cart-action-buttons-group">
+                    <!-- Walk-in Action Button -->
+                    <button type="button" class="btn-checkout" id="btn-checkout-order" title="Charge & Print (Ctrl+Enter / F9)">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span id="btn-checkout-text">Charge ₹0.00 &amp; Print</span>
+                        <kbd class="kbd-checkout hide-on-mobile">Ctrl+↵</kbd>
+                    </button>
+
+                    <!-- Dining Action Buttons (Save/Add to Table Tab OR Settle Final Bill) -->
+                    <div class="dining-action-buttons-row" id="dining-action-buttons" style="display: none;">
+                        <button type="button" class="btn-save-tab" id="btn-save-table-tab" title="Save items to table running tab / KOT">
+                            <i class="fa-solid fa-plus-circle"></i>
+                            <span id="btn-save-tab-text">Save / Add to Table</span>
+                        </button>
+                        <button type="button" class="btn-settle-tab" id="btn-settle-table-tab" title="Final payment and settle table bill">
+                            <i class="fa-solid fa-check-double"></i>
+                            <span id="btn-settle-tab-text">Settle &amp; Print Bill</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
 
     </main>
+
+    <!-- 12 Restaurant Tables Interactive Selection Modal -->
+    <div class="modal-overlay" id="tables-modal">
+        <div class="modal-box" style="max-width: 720px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-table-cells" style="color: #38bdf8;"></i> Restaurant Dining Tables (1 to 12)</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-tables-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="tables-modal-instructions">
+                    <span><span class="legend-dot vacant"></span> <strong>Green:</strong> Vacant (Click to start dining)</span>
+                    <span><span class="legend-dot occupied"></span> <strong>Orange:</strong> Occupied (Click to view/add items or settle)</span>
+                </div>
+                <div class="interactive-tables-grid" id="modal-tables-grid">
+                    <!-- Injected for 12 tables -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="nav-link-btn" id="btn-dismiss-tables-modal">Close</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Mobile Floating Bottom Bar for Fast Cart Access -->
     <div class="mobile-cart-bar" id="mobile-cart-bar">
@@ -309,13 +387,17 @@
                         <div class="receipt-meta" style="font-weight: 700;">FSSAI Lic No: 21525037001433</div>
                     </div>
 
-                    <div class="receipt-info-row">
+                    <div class="receipt-info-row bold" style="font-weight: 800; font-size: 13px;">
+                        <span id="rcpt-table-no">TABLE: Walk-in</span>
                         <span id="rcpt-bill-no">Bill: POS-000001</span>
-                        <span id="rcpt-date">27/08/2026 02:30 PM</span>
                     </div>
                     <div class="receipt-info-row">
+                        <span id="rcpt-date">27/08/2026 02:30 PM</span>
                         <span id="rcpt-cashier">Cashier: Staff</span>
+                    </div>
+                    <div class="receipt-info-row">
                         <span id="rcpt-mode">Mode: CASH</span>
+                        <span id="rcpt-order-type">Type: WALK-IN</span>
                     </div>
 
                     <div class="receipt-divider"></div>

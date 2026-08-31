@@ -251,10 +251,14 @@ def sales_summary_api():
             today_start = datetime.combine(date.today(), time.min)
             today_end = datetime.combine(date.today(), time.max)
 
-            # Query all bills for today
+            # Query all COMPLETED bills for today
             today_bills = (
                 db.query(PosBill)
-                .filter(PosBill.created_at >= today_start, PosBill.created_at <= today_end)
+                .filter(
+                    PosBill.created_at >= today_start,
+                    PosBill.created_at <= today_end,
+                    PosBill.status == "COMPLETED"
+                )
                 .all()
             )
 
@@ -265,9 +269,9 @@ def sales_summary_api():
             card_sales = sum(b.total_amount for b in today_bills if b.payment_mode == "CARD")
             discount_given = sum(b.discount for b in today_bills)
 
-            # All-time stats
-            all_time_bills = db.query(PosBill).count()
-            all_time_revenue = db.query(func.coalesce(func.sum(PosBill.total_amount), 0.0)).scalar() or 0.0
+            # All-time stats (COMPLETED bills only)
+            all_time_bills = db.query(PosBill).filter(PosBill.status == "COMPLETED").count()
+            all_time_revenue = db.query(func.coalesce(func.sum(PosBill.total_amount), 0.0)).filter(PosBill.status == "COMPLETED").scalar() or 0.0
 
             return jsonify({
                 "success": True,
@@ -293,18 +297,20 @@ def sales_summary_api():
 @admin_bp.route("/api/admin/reports/best-sellers", methods=["GET"])
 @admin_required
 def best_sellers_api():
-    """Top selling items ranked by quantity sold and total revenue."""
+    """Top selling items ranked by quantity sold and total revenue from completed bills."""
     try:
         with get_db() as db:
             limit = int(request.args.get("limit", 10))
             
-            # Query top items
+            # Query top items for completed bills only
             results = (
                 db.query(
                     PosBillItem.item_name,
                     func.sum(PosBillItem.quantity).label("total_qty"),
                     func.sum(PosBillItem.total_price).label("total_revenue")
                 )
+                .join(PosBill, PosBillItem.pos_bill_id == PosBill.id)
+                .filter(PosBill.status == "COMPLETED")
                 .group_by(PosBillItem.item_name)
                 .order_by(desc("total_qty"))
                 .limit(limit)
@@ -335,8 +341,12 @@ def list_pos_bills_api():
             search_query = request.args.get("q", "").strip()
             payment_filter = request.args.get("payment_mode", "").strip().upper()
             date_filter = request.args.get("date", "").strip()  # YYYY-MM-DD
+            status_filter = request.args.get("status", "COMPLETED").strip().upper()
 
             query = db.query(PosBill)
+            if status_filter:
+                query = query.filter(PosBill.status == status_filter)
+
 
             if search_query:
                 query = query.filter(PosBill.bill_number.ilike(f"%{search_query}%"))

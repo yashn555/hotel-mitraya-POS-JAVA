@@ -165,8 +165,34 @@ def seed_default_data(session):
                 session.add(item)
 
 
+def auto_migrate_columns():
+    """Ensure newly added columns exist in SQLite/Postgres without manual drop table."""
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            # Check SQLite table info for pos_bills
+            if engine.dialect.name == "sqlite":
+                res = conn.execute(text("PRAGMA table_info(pos_bills)")).fetchall()
+                existing_cols = [r[1] for r in res]
+                if existing_cols:
+                    if "order_type" not in existing_cols:
+                        conn.execute(text("ALTER TABLE pos_bills ADD COLUMN order_type VARCHAR(20) DEFAULT 'WALK_IN'"))
+                    if "table_number" not in existing_cols:
+                        conn.execute(text("ALTER TABLE pos_bills ADD COLUMN table_number INTEGER"))
+                    if "customer_name" not in existing_cols:
+                        conn.execute(text("ALTER TABLE pos_bills ADD COLUMN customer_name VARCHAR(100)"))
+                    if "notes" not in existing_cols:
+                        conn.execute(text("ALTER TABLE pos_bills ADD COLUMN notes VARCHAR(255)"))
+                    if "updated_at" not in existing_cols:
+                        conn.execute(text("ALTER TABLE pos_bills ADD COLUMN updated_at DATETIME"))
+                    conn.commit()
+    except Exception as e:
+        print(f"[WARN] Auto-migration check: {e}")
+
+
 def init_db():
     """Create tables if they don't exist and seed defaults."""
     Base.metadata.create_all(bind=engine)
+    auto_migrate_columns()
     with get_db() as session:
         seed_default_data(session)

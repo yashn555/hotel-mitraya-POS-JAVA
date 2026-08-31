@@ -94,9 +94,14 @@ class PosBill(Base):
     payment_mode = Column(String(20), nullable=False, default="CASH")  # CASH, UPI, CARD
     received_amount = Column(Float, nullable=True)
     change_amount = Column(Float, nullable=True)
+    order_type = Column(String(20), nullable=False, default="WALK_IN")  # 'WALK_IN' or 'DINING'
+    table_number = Column(Integer, nullable=True, index=True)  # Table 1 to 12
+    customer_name = Column(String(100), nullable=True)
+    notes = Column(String(255), nullable=True)
     cashier_role = Column(String(50), default="cashier")
-    status = Column(String(20), default="COMPLETED")
+    status = Column(String(20), default="COMPLETED")  # 'COMPLETED', 'OPEN', 'CANCELLED'
     created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     items = relationship("PosBillItem", back_populates="pos_bill", cascade="all, delete-orphan")
 
@@ -104,6 +109,11 @@ class PosBill(Base):
         return {
             "id": self.id,
             "bill_number": self.bill_number,
+            "order_type": self.order_type or "WALK_IN",
+            "table_number": self.table_number,
+            "table_label": f"Table {self.table_number}" if self.table_number else "Walk-in",
+            "customer_name": self.customer_name or "",
+            "notes": self.notes or "",
             "subtotal": float(self.subtotal),
             "discount": float(self.discount),
             "total_amount": float(self.total_amount),
@@ -113,6 +123,7 @@ class PosBill(Base):
             "cashier_role": self.cashier_role,
             "status": self.status,
             "created_at": self.created_at.strftime("%d/%m/%Y %I:%M %p") if self.created_at else None,
+            "updated_at": self.updated_at.strftime("%d/%m/%Y %I:%M %p") if self.updated_at else None,
             "date_iso": self.created_at.isoformat() if self.created_at else None,
             "items_count": len(self.items) if self.items else 0,
             "items": [item.to_dict() for item in self.items] if self.items else []
@@ -142,3 +153,23 @@ class PosBillItem(Base):
             "quantity": float(self.quantity),
             "total_price": float(self.total_price)
         }
+
+
+class PrintEvent(Base):
+    __tablename__ = "print_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    pos_bill_id = Column(Integer, ForeignKey("pos_bills.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type = Column(String(30), default="FINAL_BILL")  # 'FINAL_BILL'
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+    bill = relationship("PosBill")
+
+    def to_dict(self):
+        return {
+            "event_id": self.id,
+            "event_type": self.event_type,
+            "created_at": self.created_at.strftime("%d/%m/%Y %I:%M %p") if self.created_at else None,
+            "bill": self.bill.to_dict() if self.bill else None
+        }
+
