@@ -10,9 +10,10 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from werkzeug.security import generate_password_hash
-from database.models import Base, User, Category, MenuItem, PosBill, PosBillItem
+from database.models import Base, User, Category, MenuItem, PosBill, PosBillItem, PrintEvent
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 # Database URL configuration (PostgreSQL in production, SQLite locally)
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -186,8 +187,23 @@ def auto_migrate_columns():
                     if "updated_at" not in existing_cols:
                         conn.execute(text("ALTER TABLE pos_bills ADD COLUMN updated_at DATETIME"))
                     conn.commit()
+            else:
+                # PostgreSQL / MySQL
+                for col_sql in [
+                    "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS order_type VARCHAR(20) DEFAULT 'WALK_IN'",
+                    "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS table_number INTEGER",
+                    "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100)",
+                    "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS notes VARCHAR(255)",
+                    "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                ]:
+                    try:
+                        conn.execute(text(col_sql))
+                        conn.commit()
+                    except Exception as inner_e:
+                        pass
     except Exception as e:
         print(f"[WARN] Auto-migration check: {e}")
+
 
 
 def init_db():
