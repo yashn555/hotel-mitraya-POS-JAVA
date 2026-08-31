@@ -175,7 +175,7 @@
                 </div>
                 <div class="divider"></div>
                 <div class="table-row bold">
-                    <span>${bill.table_number ? 'TABLE: ' + bill.table_number : 'WALK-IN COUNTER'}</span>
+                    <span>${bill.order_type === 'DINING' ? 'TABLE: Table ' + bill.table_number : (bill.notes ? 'TABLE: ' + bill.notes : 'WALK-IN COUNTER')}</span>
                     <span>${bill.bill_number}</span>
                 </div>
                 <div class="table-row" style="font-size: 10px;">
@@ -276,12 +276,14 @@
             alertTableName.innerHTML = `<i class="fa-solid fa-utensils"></i> Table ${bill.table_number}`;
         } else {
             alertOrderTypeBadge.textContent = "WALK-IN ORDER";
-            alertTableName.innerHTML = `<i class="fa-solid fa-person-walking"></i> Walk-in Counter`;
+            const locLabel = bill.notes || "Walk-in Counter";
+            alertTableName.innerHTML = `<i class="fa-solid fa-person-walking"></i> ${locLabel}`;
         }
 
         alertBillNo.textContent = bill.bill_number || "POS-000000";
         alertPaymentMode.textContent = `Mode: ${bill.payment_mode || 'CASH'}`;
         alertTotalAmount.textContent = formatMoney(bill.total_amount);
+
 
         // Populate Items
         alertItemsContainer.innerHTML = "";

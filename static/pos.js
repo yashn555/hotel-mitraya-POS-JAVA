@@ -51,11 +51,14 @@
     const cartTableStatusPill = document.getElementById("cart-table-status-pill");
     const btnChangeTable = document.getElementById("btn-change-table");
     const diningActionButtons = document.getElementById("dining-action-buttons");
+    const walkinTableContainer = document.getElementById("walkin-table-container");
+    const walkinTableSelect = document.getElementById("walkin-table-select");
     const btnSaveTableTab = document.getElementById("btn-save-table-tab");
     const btnSaveTabText = document.getElementById("btn-save-tab-text");
     const btnSettleTableTab = document.getElementById("btn-settle-table-tab");
     const btnSettleTabText = document.getElementById("btn-settle-tab-text");
     const cartHeadingTitle = document.getElementById("cart-heading-title");
+
 
     // Tables Modal Elements
     const tablesModal = document.getElementById("tables-modal");
@@ -473,6 +476,7 @@
             tabModeWalkin.classList.remove("active");
             diningTableBanner.style.display = "flex";
             diningActionButtons.style.display = "flex";
+            if (walkinTableContainer) walkinTableContainer.style.display = "none";
             btnCheckout.style.display = "none";
             cartHeadingTitle.textContent = `Table ${selectedTableNumber} Order`;
             cartSelectedTableBadge.innerHTML = `<i class="fa-solid fa-chair"></i> Table ${selectedTableNumber}`;
@@ -485,11 +489,13 @@
             tabModeDining.classList.remove("active");
             diningTableBanner.style.display = "none";
             diningActionButtons.style.display = "none";
+            if (walkinTableContainer) walkinTableContainer.style.display = "flex";
             btnCheckout.style.display = "flex";
             cartHeadingTitle.textContent = "Walk-in Order";
         }
         updateCartUI();
     }
+
 
     if (tabModeWalkin) {
         tabModeWalkin.addEventListener("click", () => setOrderMode("WALK_IN"));
@@ -730,9 +736,11 @@
         }
 
         const netTotal = getNetTotal();
+        const walkinTableVal = walkinTableSelect ? walkinTableSelect.value : "";
         const payload = {
             order_type: "WALK_IN",
             table_number: null,
+            notes: walkinTableVal || "Walk-in Counter",
             items: cart.map(i => ({
                 menu_item_id: i.item_id,
                 name: i.name,
@@ -768,6 +776,7 @@
                 discountAmount = 0;
                 if (cartDiscountInput) cartDiscountInput.value = 0;
                 if (cashReceivedInput) cashReceivedInput.value = "";
+                if (walkinTableSelect) walkinTableSelect.value = "";
                 updateCartUI();
 
             } else {
@@ -790,12 +799,14 @@
         const isDining = bill.order_type === "DINING" || (bill.table_number && bill.table_number > 0);
         const rcptTableEl = document.getElementById("rcpt-table-no");
         if (rcptTableEl) {
-            rcptTableEl.textContent = isDining ? `TABLE: Table ${bill.table_number}` : "TABLE: Walk-in Counter";
+            const tableLabel = isDining ? `TABLE: Table ${bill.table_number}` : (bill.notes ? `TABLE: ${bill.notes}` : "TABLE: Walk-in Counter");
+            rcptTableEl.textContent = tableLabel;
         }
         const rcptOrderTypeEl = document.getElementById("rcpt-order-type");
         if (rcptOrderTypeEl) {
             rcptOrderTypeEl.textContent = `Type: ${bill.order_type || (isDining ? 'DINING' : 'WALK-IN')}`;
         }
+
 
         document.getElementById("rcpt-bill-no").textContent = `Bill: ${bill.bill_number}`;
         document.getElementById("rcpt-date").textContent = bill.created_at || new Date().toLocaleString();
