@@ -364,27 +364,23 @@
 
     </main>
 
-    <!-- 12 Restaurant Tables Interactive Selection Modal -->
+    <!-- 12 Restaurant Tables Interactive Selection Popup (Lightweight & Fast Tap) -->
     <div class="modal-overlay" id="tables-modal">
-        <div class="modal-box" style="max-width: 720px;">
-            <div class="modal-header">
-                <h3><i class="fa-solid fa-table-cells" style="color: #38bdf8;"></i> Restaurant Dining Tables (1 to 12)</h3>
-                <button type="button" class="modal-close-btn" id="btn-close-tables-modal">&times;</button>
+        <div class="modal-box tables-modal-popup-box">
+            <div class="tables-modal-popup-header">
+                <h3><i class="fa-solid fa-chair" style="color: #38bdf8;"></i> Select Table (1 to 12)</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-tables-modal" style="color: #cbd5e1; font-size: 20px;">&times;</button>
             </div>
-            <div class="modal-body" style="padding: 20px;">
-                <div class="tables-modal-instructions">
-                    <span><span class="legend-dot vacant"></span> <strong>Green:</strong> Vacant (Click to start dining)</span>
-                    <span><span class="legend-dot occupied"></span> <strong>Orange:</strong> Occupied (Click to view/add items or settle)</span>
-                </div>
-                <div class="interactive-tables-grid" id="modal-tables-grid">
-                    <!-- Injected for 12 tables -->
-                </div>
+            <div class="tables-modal-instructions">
+                <span><span class="legend-dot vacant"></span> Free (Start Tab)</span>
+                <span><span class="legend-dot occupied"></span> Occupied (Active Tab)</span>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="nav-link-btn" id="btn-dismiss-tables-modal">Close</button>
+            <div class="interactive-tables-grid" id="modal-tables-grid">
+                <!-- Injected for 12 tables -->
             </div>
         </div>
     </div>
+
 
     <!-- Mobile Floating Bottom Bar for Fast Cart Access -->
     <div class="mobile-cart-bar" id="mobile-cart-bar">
