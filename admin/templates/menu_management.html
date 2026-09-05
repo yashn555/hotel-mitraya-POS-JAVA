@@ -45,29 +45,39 @@
         .hdr {
             background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
             border-bottom: 3px solid var(--brand-crimson);
-            padding: 0 20px; height: 64px; display: flex; align-items: center;
+            padding: 0 16px; height: 64px; display: flex; align-items: center;
             justify-content: space-between; position: sticky; top: 0; z-index: 100;
             color: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,.15);
         }
-        .hdr-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #ffffff; }
-        .hdr-brand img { width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); }
-        .hdr-brand h1 { font-size: 16px; font-weight: 900; letter-spacing: 1px; color: #ffffff; }
+        .hdr-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #ffffff; flex-shrink: 0; }
+        .hdr-brand img { width: 36px; height: 36px; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); }
+        .hdr-brand h1 { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; color: #ffffff; }
         .hdr-brand span { font-size: 11px; color: #38bdf8; font-weight: 700; }
-        .hdr-nav { display: flex; align-items: center; gap: 8px; }
-        .nav-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.12); color: #ffffff; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all .2s; font-family: var(--sans); white-space: nowrap; }
+        .hdr-nav { display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 65%; scrollbar-width: none; }
+        .hdr-nav::-webkit-scrollbar { display: none; }
+        .nav-btn { display: flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.12); color: #ffffff; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all .2s; font-family: var(--sans); white-space: nowrap; flex-shrink: 0; }
         .nav-btn:hover { background: rgba(255,255,255,.22); color: #ffffff; }
         .nav-btn.active { background: #ffffff; color: var(--brand-navy); border-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
         .nav-btn.gold { border-color: rgba(251,191,36,.4); color: #fbbf24; }
         .nav-btn.danger:hover { background: #b91c1c; border-color: #ef4444; }
-        .user-chip { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.2); border-radius: 20px; font-size: 12px; font-weight: 700; color: #ffffff; }
+        .user-chip { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.2); border-radius: 20px; font-size: 11px; font-weight: 700; color: #ffffff; flex-shrink: 0; }
         .role-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; }
 
         /* MAIN CONTAINER */
-        .main { max-width: 1240px; margin: 0 auto; padding: 24px 20px; }
-        .hero { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
-        .hero-title h2 { font-size: 22px; font-weight: 900; color: var(--fp); }
+        .main { max-width: 1240px; margin: 0 auto; padding: 20px 16px; }
+        .hero { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 14px; }
+        .hero-title h2 { font-size: 20px; font-weight: 900; color: var(--fp); }
         .hero-title p { font-size: 13px; color: var(--fs); margin-top: 3px; }
-        .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        @media (max-width: 700px) {
+            .hdr-brand span { display: none; }
+            .hero-actions { width: 100%; }
+            .hero-actions .btn { flex: 1; justify-content: center; }
+        }
+        @media (max-width: 500px) {
+            .hdr-brand h1 { display: none; }
+            .main { padding: 12px 10px; }
+        }
 
         /* BUTTONS */
         .btn { padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border: none; transition: all .15s; text-decoration: none; font-family: var(--sans); }

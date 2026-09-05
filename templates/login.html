@@ -71,6 +71,13 @@
         .msg.ok { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         @keyframes up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .quick-hint { font-size: 11px; text-align: center; margin-top: 14px; color: var(--fm); }
+        @media (max-width: 768px) {
+            #role-tabs { display: none !important; }
+            body { padding: 12px; }
+            .card { padding: 22px 18px; border-radius: 18px; }
+            .k { height: 54px; font-size: 22px; }
+            .btn-go { height: 52px; font-size: 16px; }
+        }
     </style>
 </head>
 <body>
