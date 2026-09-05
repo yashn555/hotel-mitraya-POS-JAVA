@@ -1,19 +1,21 @@
 """
 Database Setup & Session Management for Hotel Mitraya
 =====================================================
-Supports SQLite for development / local runs and PostgreSQL for production.
-Includes automatic table creation and initial seed data.
+Supports SQLite for development / local restaurant runs and PostgreSQL for production.
+Includes non-destructive automatic schema migration, initial seed data, and audit logging.
 """
 
 import os
 from contextlib import contextmanager
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from werkzeug.security import generate_password_hash
-from database.models import Base, User, Category, MenuItem, PosBill, PosBillItem, PrintEvent
+from database.models import (
+    Base, User, Category, MenuItem, Order, OrderItem, PosBill, PosBillItem,
+    PrintJob, PrinterConfigModel, AuditLog, PrintEvent, DiningTable
+)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 # Database URL configuration (PostgreSQL in production, SQLite locally)
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -56,13 +58,33 @@ def get_db():
         session.close()
 
 
+def record_audit_log(db_session, action: str, entity: str = None, entity_id: str = None, details: str = None,
+                     user_id: int = None, username: str = None, role: str = None, ip_address: str = None, **kwargs):
+    """
+    Safely record an action in the audit trail without disrupting business operations.
+    """
+    try:
+        log = AuditLog(
+            user_id=user_id,
+            username=username or "System",
+            role=role or "system",
+            action=action,
+            entity=entity,
+            entity_id=str(entity_id) if entity_id is not None else None,
+            details=details,
+            ip_address=ip_address
+        )
+        db_session.add(log)
+    except Exception as e:
+        print(f"[WARN] Failed to record audit log: {e}")
+
+
 def seed_default_data(session):
-    """Seed initial Admin/Cashier users and standard Hotel Mitraya menu categories & items."""
+    """Seed initial Admin, Cashier, and Waiter users, default printer config, and standard menu."""
     
     # 1. Seed Users if not present
     admin_user = session.query(User).filter_by(username="admin").first()
     if not admin_user:
-        # Default Admin PIN: 2005 (matches existing legacy APP_PIN)
         admin_pin = os.environ.get("ADMIN_PIN", "2005").strip()
         admin_user = User(
             username="admin",
@@ -74,19 +96,45 @@ def seed_default_data(session):
 
     cashier_user = session.query(User).filter_by(username="cashier").first()
     if not cashier_user:
-        # Default Cashier PIN: 1234
         cashier_pin = os.environ.get("CASHIER_PIN", "1234").strip()
         cashier_user = User(
             username="cashier",
             role="cashier",
-            name="POS Cashier",
+            name="Counter Cashier",
             pin_hash=generate_password_hash(cashier_pin)
         )
         session.add(cashier_user)
 
+    waiter_user = session.query(User).filter_by(username="waiter").first()
+    if not waiter_user:
+        waiter_pin = os.environ.get("WAITER_PIN", "5678").strip()
+        waiter_user = User(
+            username="waiter",
+            role="waiter",
+            name="Floor Waiter",
+            pin_hash=generate_password_hash(waiter_pin)
+        )
+        session.add(waiter_user)
+
     session.flush()
 
-    # 2. Seed Initial Categories and Menu Items if database is empty
+    # 2. Seed Default Printer Configuration if not present
+    default_printer = session.query(PrinterConfigModel).filter_by(is_default=True).first()
+    if not default_printer:
+        default_printer = PrinterConfigModel(
+            name="Main Counter Thermal Printer",
+            connection_type="WINDOWS_DRIVER",
+            paper_width=80,
+            printer_name="",
+            is_default=True,
+            cut_enabled=True,
+            header_title="HOTEL MITRAYA",
+            footer_text="Thank You! Visit Again."
+        )
+        session.add(default_printer)
+        session.flush()
+
+    # 3. Seed Initial Categories and Menu Items if database is empty
     if session.query(Category).count() == 0:
         default_catalog = [
             {
@@ -165,14 +213,25 @@ def seed_default_data(session):
                 )
                 session.add(item)
 
+    # 4. Seed Dining Tables (1 to 12) if not present
+    if session.query(DiningTable).count() == 0:
+        for t_num in range(1, 13):
+            tbl = DiningTable(
+                table_number=t_num,
+                capacity=4,
+                status="VACANT"
+            )
+            session.add(tbl)
+        session.flush()
+
 
 def auto_migrate_columns():
-    """Ensure newly added columns exist in SQLite/Postgres without manual drop table."""
+    """Ensure newly added columns exist in SQLite/Postgres without manual drop table or data loss."""
     try:
-        from sqlalchemy import text
         with engine.connect() as conn:
-            # Check SQLite table info for pos_bills
+            # Check SQLite table info
             if engine.dialect.name == "sqlite":
+                # PosBills columns check
                 res = conn.execute(text("PRAGMA table_info(pos_bills)")).fetchall()
                 existing_cols = [r[1] for r in res]
                 if existing_cols:
@@ -186,7 +245,17 @@ def auto_migrate_columns():
                         conn.execute(text("ALTER TABLE pos_bills ADD COLUMN notes VARCHAR(255)"))
                     if "updated_at" not in existing_cols:
                         conn.execute(text("ALTER TABLE pos_bills ADD COLUMN updated_at DATETIME"))
-                    conn.commit()
+                
+                # Users columns check
+                user_cols_res = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+                user_cols = [r[1] for r in user_cols_res]
+                if user_cols:
+                    if "is_active" not in user_cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+                    if "updated_at" not in user_cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN updated_at DATETIME"))
+                
+                conn.commit()
             else:
                 # PostgreSQL / MySQL
                 for col_sql in [
@@ -194,16 +263,17 @@ def auto_migrate_columns():
                     "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS table_number INTEGER",
                     "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100)",
                     "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS notes VARCHAR(255)",
-                    "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    "ALTER TABLE pos_bills ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                 ]:
                     try:
                         conn.execute(text(col_sql))
                         conn.commit()
-                    except Exception as inner_e:
+                    except Exception:
                         pass
     except Exception as e:
         print(f"[WARN] Auto-migration check: {e}")
-
 
 
 def init_db():

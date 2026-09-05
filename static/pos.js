@@ -1,9 +1,12 @@
 /**
- * Hotel Mitraya Quick POS Client Application
- * ===========================================
- * Handles menu catalog, shopping cart, cash tender calculations,
- * sequential checkout, mobile drawer controls, keyboard shortcuts,
- * and 80mm thermal receipt printing & reprinting.
+ * Hotel Mitraya - Billing Counter POS & Direct Thermal Printing Station
+ * ======================================================================
+ * Features:
+ * 1. Automatic Printer Hardware Detection on load (58mm/80mm, Bluetooth, Spooler).
+ * 2. Real-time Status Badge & Welcome Slip generation.
+ * 3. High-ergonomics Walk-in Quick Billing + Large Touch Cards.
+ * 4. 12 Restaurant Dining Tables visual floor grid with live tab settlement.
+ * 5. Direct settlement and thermal print dispatch with disconnected printer alerts.
  */
 
 (function () {
@@ -11,749 +14,934 @@
 
     // Application State
     let catalog = [];
-    let cart = []; // [{ item_id, name, unit_price, quantity }]
-    let activeCategoryId = "all";
-    let paymentMode = "CASH";
-    let discountAmount = 0;
-    let cashReceived = 0;
-    let currentFilteredItems = [];
+    let allMenuItems = [];
+    let activeCategory = "all";
+    let walkinCart = {}; // key: menu_item_id -> { item, quantity, notes }
+    let currentMode = "WALK_IN"; // "WALK_IN" or "DINING"
+    let selectedDiningTableNo = null;
+    let selectedDiningOrder = null;
+    let tablesData = [];
+    let currentPaymentMode = "CASH";
+    let discountAmount = 0.0;
+    let pollTimer = null;
+    let lastGeneratedBill = null;
 
-    // Dual Billing & 12 Tables State
-    let orderMode = "WALK_IN"; // "WALK_IN" or "DINING"
-    let selectedTableNumber = 1;
-    let currentTableOrder = null; // Active PosBill on selected table if any
+    // Printer Hardware State
+    let printerState = {
+        connected: false,
+        name: "Not Connected",
+        type: "NONE", // "BLUETOOTH", "SYSTEM", "NONE"
+        paperWidth: 80,
+        systemPrinters: [],
+        activeSystemPrinter: ""
+    };
 
     // DOM Elements
-    const categoryBar = document.getElementById("category-pills-bar");
-    const menuGrid = document.getElementById("menu-items-grid");
-    const searchInput = document.getElementById("item-search-input");
-    const cartPane = document.getElementById("pos-cart-pane");
-    const cartList = document.getElementById("cart-items-list");
+    const itemSearchInput = document.getElementById("item-search-input");
+    const categoryPillsBar = document.getElementById("category-pills-bar");
+    const menuItemsGrid = document.getElementById("menu-items-grid");
+
+    const tabModeWalkin = document.getElementById("tab-mode-walkin");
+    const tabModeDining = document.getElementById("tab-mode-dining");
+    const activeTablesBadge = document.getElementById("active-tables-badge");
+
+    const walkinCatalogContainer = document.getElementById("walkin-catalog-container");
+    const diningFloorContainer = document.getElementById("dining-floor-container");
+    const counterTablesGrid = document.getElementById("counter-tables-grid");
+    const btnRefreshTablesCounter = document.getElementById("btn-refresh-tables-counter");
+
+    const currentCartTitle = document.getElementById("current-cart-title");
+    const cartItemsList = document.getElementById("cart-items-list");
     const cartCountBadge = document.getElementById("cart-count-badge");
+    const btnClearCart = document.getElementById("btn-clear-cart");
+
     const cartSubtotalEl = document.getElementById("cart-subtotal");
     const cartDiscountInput = document.getElementById("cart-discount-input");
     const cartNetTotalEl = document.getElementById("cart-net-total");
-    const btnClearCart = document.getElementById("btn-clear-cart");
-    const paymentModeButtons = document.querySelectorAll(".pm-tab-btn");
-    const cashTenderBox = document.getElementById("cash-tender-container");
+
+    const paymentTabs = document.querySelectorAll(".pm-tab-btn");
+    const cashTenderContainer = document.getElementById("cash-tender-container");
     const cashReceivedInput = document.getElementById("cash-received-input");
     const changeDisplay = document.getElementById("change-display");
     const btnExactCash = document.getElementById("btn-exact-cash");
-    const quickCashButtons = document.querySelectorAll(".quick-cash-btn[data-val]");
-    const btnCheckout = document.getElementById("btn-checkout-order");
-    const btnCheckoutText = document.getElementById("btn-checkout-text");
+    const quickCashBtns = document.querySelectorAll(".quick-cash-btn[data-val]");
 
-    // Dual Mode & 12 Tables Elements
-    const tabModeWalkin = document.getElementById("tab-mode-walkin");
-    const tabModeDining = document.getElementById("tab-mode-dining");
-    const diningTableBanner = document.getElementById("dining-table-banner");
-    const cartSelectedTableBadge = document.getElementById("cart-selected-table-badge");
-    const cartTableStatusPill = document.getElementById("cart-table-status-pill");
-    const btnChangeTable = document.getElementById("btn-change-table");
-    const diningActionButtons = document.getElementById("dining-action-buttons");
-    const walkinTableContainer = document.getElementById("walkin-table-container");
-    const walkinTableSelect = document.getElementById("walkin-table-select");
-    const btnSaveTableTab = document.getElementById("btn-save-table-tab");
-    const btnSaveTabText = document.getElementById("btn-save-tab-text");
+    const btnCheckoutOrder = document.getElementById("btn-checkout-order");
+    const btnCheckoutText = document.getElementById("btn-checkout-text");
     const btnSettleTableTab = document.getElementById("btn-settle-table-tab");
     const btnSettleTabText = document.getElementById("btn-settle-tab-text");
-    const cartHeadingTitle = document.getElementById("cart-heading-title");
 
+    // Header Printer Badge
+    const btnPrinterStatusBadge = document.getElementById("btn-printer-status-badge");
+    const printerStatusDot = document.getElementById("printer-status-dot");
+    const printerStatusText = document.getElementById("printer-status-text");
+    const printerConnectHint = document.getElementById("printer-connect-hint");
 
-    // Tables Modal Elements
-    const tablesModal = document.getElementById("tables-modal");
-    const btnOpenTablesModal = document.getElementById("btn-open-tables-modal");
-    const btnCloseTablesModal = document.getElementById("btn-close-tables-modal");
-    const btnDismissTablesModal = document.getElementById("btn-dismiss-tables-modal");
-    const modalTablesGrid = document.getElementById("modal-tables-grid");
-    const headerTablesLabel = document.getElementById("header-tables-label");
+    // Printer Control Modal
+    const printerControlModal = document.getElementById("printer-control-modal");
+    const btnClosePrinterModal = document.getElementById("btn-close-printer-modal");
+    const btnDismissPrinterModal = document.getElementById("btn-dismiss-printer-modal");
+    const printerModalDeviceName = document.getElementById("printer-modal-device-name");
+    const printerModalStatusPill = document.getElementById("printer-modal-status-pill");
+    const btnPaper80 = document.getElementById("btn-paper-80");
+    const btnPaper58 = document.getElementById("btn-paper-58");
+    const systemPrintersSelect = document.getElementById("system-printers-select");
+    const btnBtScanConnect = document.getElementById("btn-bt-scan-connect");
+    const btnPrintWelcomeSlip = document.getElementById("btn-print-welcome-slip");
+    const btnPrintTestSlip = document.getElementById("btn-print-test-slip");
 
-    // Mobile Elements
-    const btnOpenMobileCart = document.getElementById("btn-open-mobile-cart");
-    const btnMobileCloseCart = document.getElementById("btn-mobile-close-cart");
-    const mobileCartCount = document.getElementById("mobile-cart-count");
-    const mobileCartTotal = document.getElementById("mobile-cart-total");
-
-    // Modals & Bluetooth Elements
+    // Receipt Modal
     const receiptModal = document.getElementById("receipt-modal");
-    const btnCloseReceipt = document.getElementById("btn-close-receipt-modal");
+    const btnCloseReceiptModal = document.getElementById("btn-close-receipt-modal");
     const btnDismissReceipt = document.getElementById("btn-dismiss-receipt");
     const btnPrintReceipt = document.getElementById("btn-print-receipt");
     const btnBtDirectPrint = document.getElementById("btn-bt-direct-print");
+
+    // Recent Bills Modal
     const recentBillsModal = document.getElementById("recent-bills-modal");
-    const btnOpenRecent = document.getElementById("btn-open-recent-bills");
-    const btnCloseRecent = document.getElementById("btn-close-recent-modal");
-    const btnCloseRecentFooter = document.getElementById("btn-close-recent-modal-btn");
-    const recentBillsTbody = document.getElementById("recent-bills-table-body");
-    const shortcutsModal = document.getElementById("shortcuts-modal");
-    const btnOpenShortcuts = document.getElementById("btn-open-shortcuts-modal");
-    const btnCloseShortcuts = document.getElementById("btn-close-shortcuts-modal");
-    const btnDismissShortcuts = document.getElementById("btn-dismiss-shortcuts");
+    const btnOpenRecentBills = document.getElementById("btn-open-recent-bills");
+    const btnCloseRecentModal = document.getElementById("btn-close-recent-modal");
+    const btnDismissRecentModal = document.getElementById("btn-dismiss-recent-modal");
+    const recentBillsList = document.getElementById("recent-bills-list");
+
     const btnLogout = document.getElementById("btn-logout");
+    const toastContainer = document.getElementById("toast-container");
 
-    // Bluetooth Printer Modal Elements
-    const btnBtPrinter = document.getElementById("btn-bt-printer");
-    const btBtnLabel = document.getElementById("bt-btn-label");
-    const btPrinterModal = document.getElementById("bt-printer-modal");
-    const btnCloseBtModal = document.getElementById("btn-close-bt-modal");
-    const btnDismissBtModal = document.getElementById("btn-dismiss-bt-modal");
-    const btnBtConnect = document.getElementById("btn-bt-connect");
-    const btnBtDisconnect = document.getElementById("btn-bt-disconnect");
-    const btnBtTestPrint = document.getElementById("btn-bt-test-print");
-    const btModalDeviceName = document.getElementById("bt-modal-device-name");
-    const btModalStatusDot = document.getElementById("bt-modal-status-dot");
-    const btModalStatusText = document.getElementById("bt-modal-status-text");
-    const btAutoprintToggle = document.getElementById("bt-autoprint-toggle");
-    const btPaperWidthSelect = document.getElementById("bt-paper-width-select");
+    // ─── INITIALIZATION ────────────────────────────────────────────────────────
+    async function init() {
+        setupEventListeners();
+        setupKeyboardShortcuts();
+        
+        // Step 1: Scan & Identify Connected Printer
+        await scanConnectedPrinter();
 
-    let currentReceiptBill = null;
+        // Step 2: Load Catalog & Tables in parallel
+        await Promise.all([loadCatalog(), loadCounterTables()]);
 
-    // Toast Notifications
-    function showToast(message, type = "success") {
-        const container = document.getElementById("toast-container");
-        if (!container) return;
-
-        const toast = document.createElement("div");
-        toast.className = `toast ${type}`;
-        const icon = type === "success" ? "fa-circle-check" : "fa-circle-exclamation";
-        toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
-        container.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.opacity = "0";
-            setTimeout(() => toast.remove(), 250);
-        }, 2800);
+        // Step 3: Live Polling for Tables & Kitchen Status
+        startLivePolling();
     }
 
-    // Format Currency
-    function formatMoney(amount) {
-        return "₹" + Number(amount || 0).toLocaleString("en-IN", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+    // ─── TOAST NOTIFICATIONS ──────────────────────────────────────────────────
+    function showToast(message, type = "success", duration = 4000) {
+        if (!toastContainer) return;
+        const toast = document.createElement("div");
+        toast.className = `pos-toast ${type}`;
+        const icon = type === "success" ? "fa-circle-check" : (type === "warning" ? "fa-triangle-exclamation" : "fa-circle-xmark");
+        toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform = "translateX(100%)";
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    // ─── PRINTER DETECTION & STATUS ENGINE ─────────────────────────────────────
+    async function scanConnectedPrinter() {
+        updatePrinterBadgeUI("scanning", "Scanning Hardware...");
+        
+        try {
+            // 1. Check Web Bluetooth status
+            if (window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected()) {
+                const btName = window.MitrayaBluetoothPrinter.getDeviceName();
+                const width = window.MitrayaBluetoothPrinter.getPaperWidth();
+                setPrinterConnectedState("BLUETOOTH", btName, width);
+                return;
+            }
+
+            // 2. Query Server Hardware & Thermal Status
+            const [statusRes, listRes] = await Promise.all([
+                fetch("/api/printer/status").then(r => r.json()).catch(() => null),
+                fetch("/api/printer/list").then(r => r.json()).catch(() => null)
+            ]);
+
+            if (listRes && listRes.success && listRes.printers) {
+                printerState.systemPrinters = listRes.printers;
+                populateSystemPrintersDropdown(listRes.printers);
+            }
+
+            if (statusRes && statusRes.success && statusRes.connected) {
+                const name = statusRes.identified_printer || "Thermal Printer";
+                const width = statusRes.paper_width || 58;
+                setPrinterConnectedState("SYSTEM", name, width);
+                return;
+            }
+
+            // If no physical thermal printer is connected
+            setPrinterDisconnectedState();
+
+        } catch (e) {
+            console.warn("Printer scan error:", e);
+            setPrinterDisconnectedState();
+        }
+    }
+
+    function setPrinterConnectedState(type, name, paperWidth) {
+        printerState.connected = true;
+        printerState.type = type;
+        printerState.name = name;
+        printerState.paperWidth = paperWidth;
+
+        const label = `${name.length > 18 ? name.substring(0, 18) + '...' : name} (${paperWidth}mm)`;
+        updatePrinterBadgeUI("connected", label);
+        updatePrinterModalUI(true, name, paperWidth);
+    }
+
+    function setPrinterDisconnectedState() {
+        printerState.connected = false;
+        printerState.type = "NONE";
+        printerState.name = "Not Connected";
+
+        updatePrinterBadgeUI("disconnected", "Printer: Not Connected");
+        updatePrinterModalUI(false, "No Thermal Printer Detected", printerState.paperWidth);
+    }
+
+    function updatePrinterBadgeUI(status, label) {
+        if (!btnPrinterStatusBadge) return;
+        btnPrinterStatusBadge.className = `printer-status-badge ${status}`;
+        if (printerStatusText) printerStatusText.textContent = label;
+        if (printerConnectHint) {
+            printerConnectHint.style.display = (status === "disconnected") ? "inline-block" : "none";
+        }
+    }
+
+    function updatePrinterModalUI(connected, name, paperWidth) {
+        if (printerModalDeviceName) printerModalDeviceName.textContent = name;
+        if (printerModalStatusPill) {
+            printerModalStatusPill.className = `table-status-pill ${connected ? 'vacant' : 'occupied'}`;
+            printerModalStatusPill.textContent = connected ? "ONLINE & READY" : "NOT CONNECTED";
+        }
+        if (btnPaper80 && btnPaper58) {
+            if (paperWidth === 58) {
+                btnPaper58.classList.add("active");
+                btnPaper80.classList.remove("active");
+            } else {
+                btnPaper80.classList.add("active");
+                btnPaper58.classList.remove("active");
+            }
+        }
+    }
+
+    function populateSystemPrintersDropdown(printers) {
+        if (!systemPrintersSelect) return;
+        systemPrintersSelect.innerHTML = "";
+        printers.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p.name;
+            opt.textContent = `${p.name} ${p.is_default ? '(Default)' : ''}`;
+            if (p.name === printerState.name) opt.selected = true;
+            systemPrintersSelect.appendChild(opt);
         });
     }
 
-    // Load Catalog from API
+    // ─── WELCOME SLIP DISPATCH ────────────────────────────────────────────────
+    async function printWelcomeSlip() {
+        showToast("Sending Welcome Confirmation Slip...", "warning", 2000);
+
+        try {
+            // If Bluetooth printer is active
+            if (printerState.type === "BLUETOOTH" && window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected()) {
+                await window.MitrayaBluetoothPrinter.printWelcomeSlip();
+                showToast("Welcome slip printed successfully on Bluetooth printer!", "success");
+                return;
+            }
+
+            // Otherwise dispatch via Server Thermal Spooler
+            const res = await fetch("/api/printer/startup-init", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`Welcome slip sent to '${data.identified_printer}'!`, "success");
+            } else {
+                showToast(`Print failed: ${data.error || 'Check printer connection'}`, "error");
+            }
+        } catch (e) {
+            showToast(`Print Error: ${e.message}`, "error");
+        }
+    }
+
+    // ─── TEST RECEIPT DISPATCH ────────────────────────────────────────────────
+    async function printTestReceipt() {
+        try {
+            if (printerState.type === "BLUETOOTH" && window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected()) {
+                await window.MitrayaBluetoothPrinter.printTestReceipt();
+                showToast("Test receipt printed on Bluetooth printer!", "success");
+                return;
+            }
+
+            const res = await fetch("/api/printer/test", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    paper_width: printerState.paperWidth,
+                    printer_name: printerState.name
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast("Test receipt sent to thermal printer!", "success");
+            } else {
+                showToast(`Test print failed: ${data.error}`, "error");
+            }
+        } catch (e) {
+            showToast(`Print Error: ${e.message}`, "error");
+        }
+    }
+
+    // ─── BLUETOOTH SCAN & CONNECT ─────────────────────────────────────────────
+    async function connectBluetoothPrinter() {
+        if (!window.MitrayaBluetoothPrinter) {
+            showToast("Bluetooth printing library not loaded.", "error");
+            return;
+        }
+
+        try {
+            showToast("Searching for nearby Bluetooth printers...", "warning", 3000);
+            await window.MitrayaBluetoothPrinter.connect();
+            const name = window.MitrayaBluetoothPrinter.getDeviceName();
+            const width = window.MitrayaBluetoothPrinter.getPaperWidth();
+            setPrinterConnectedState("BLUETOOTH", name, width);
+            showToast(`Connected to '${name}'! Welcome slip printed.`, "success");
+        } catch (e) {
+            console.warn("BT Connect cancelled or failed:", e);
+            if (!e.message.includes("cancelled")) {
+                showToast(`Bluetooth Error: ${e.message}`, "error");
+            }
+        }
+    }
+
+    // ─── EVENT LISTENERS ──────────────────────────────────────────────────────
+    function setupEventListeners() {
+        // Mode switch tabs
+        if (tabModeWalkin) tabModeWalkin.addEventListener("click", () => switchMode("WALK_IN"));
+        if (tabModeDining) tabModeDining.addEventListener("click", () => switchMode("DINING"));
+
+        // Search input
+        if (itemSearchInput) itemSearchInput.addEventListener("input", () => renderMenuItems());
+
+        // Clear Cart
+        if (btnClearCart) btnClearCart.addEventListener("click", clearWalkinCart);
+
+        // Discount input
+        if (cartDiscountInput) cartDiscountInput.addEventListener("input", updateFinancials);
+
+        // Payment Mode
+        paymentTabs.forEach(tab => {
+            tab.addEventListener("click", () => setPaymentMode(tab.getAttribute("data-mode")));
+        });
+
+        // Cash tender inputs
+        if (cashReceivedInput) cashReceivedInput.addEventListener("input", updateChangeCalculation);
+        if (btnExactCash) {
+            btnExactCash.addEventListener("click", () => {
+                const net = getNetTotal();
+                if (cashReceivedInput) {
+                    cashReceivedInput.value = Math.ceil(net);
+                    updateChangeCalculation();
+                }
+            });
+        }
+        quickCashBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const val = parseFloat(btn.getAttribute("data-val"));
+                if (cashReceivedInput) {
+                    cashReceivedInput.value = val;
+                    updateChangeCalculation();
+                }
+            });
+        });
+
+        // Checkouts
+        if (btnCheckoutOrder) btnCheckoutOrder.addEventListener("click", performWalkinCheckout);
+        if (btnSettleTableTab) btnSettleTableTab.addEventListener("click", performTableSettlement);
+
+        // Printer Badge & Modal
+        if (btnPrinterStatusBadge) {
+            btnPrinterStatusBadge.addEventListener("click", () => {
+                printerControlModal.classList.add("active");
+            });
+        }
+        if (btnClosePrinterModal) btnClosePrinterModal.addEventListener("click", () => printerControlModal.classList.remove("active"));
+        if (btnDismissPrinterModal) btnDismissPrinterModal.addEventListener("click", () => printerControlModal.classList.remove("active"));
+
+        if (btnPaper80) {
+            btnPaper80.addEventListener("click", () => setPaperWidth(80));
+        }
+        if (btnPaper58) {
+            btnPaper58.addEventListener("click", () => setPaperWidth(58));
+        }
+
+        if (systemPrintersSelect) {
+            systemPrintersSelect.addEventListener("change", async (e) => {
+                const selected = e.target.value;
+                if (selected) {
+                    setPrinterConnectedState("SYSTEM", selected, printerState.paperWidth);
+                    // Save to server
+                    await fetch("/api/printer/config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            printer_name: selected,
+                            paper_width: printerState.paperWidth
+                        })
+                    }).catch(() => {});
+                    showToast(`Active printer set to: ${selected}`, "success");
+                }
+            });
+        }
+
+        if (btnBtScanConnect) btnBtScanConnect.addEventListener("click", connectBluetoothPrinter);
+        if (btnPrintWelcomeSlip) btnPrintWelcomeSlip.addEventListener("click", printWelcomeSlip);
+        if (btnPrintTestSlip) btnPrintTestSlip.addEventListener("click", printTestReceipt);
+
+        // Recent Bills Modal
+        if (btnOpenRecentBills) btnOpenRecentBills.addEventListener("click", openRecentBillsModal);
+        if (btnCloseRecentModal) btnCloseRecentModal.addEventListener("click", () => recentBillsModal.classList.remove("active"));
+        if (btnDismissRecentModal) btnDismissRecentModal.addEventListener("click", () => recentBillsModal.classList.remove("active"));
+
+        // Receipt Modal
+        if (btnCloseReceiptModal) btnCloseReceiptModal.addEventListener("click", () => receiptModal.classList.remove("active"));
+        if (btnDismissReceipt) btnDismissReceipt.addEventListener("click", () => receiptModal.classList.remove("active"));
+        if (btnPrintReceipt) btnPrintReceipt.addEventListener("click", () => window.print());
+        if (btnBtDirectPrint) {
+            btnBtDirectPrint.addEventListener("click", async () => {
+                if (lastGeneratedBill && window.MitrayaBluetoothPrinter) {
+                    try {
+                        await window.MitrayaBluetoothPrinter.printReceipt(lastGeneratedBill);
+                        showToast("Receipt sent to Bluetooth printer!", "success");
+                    } catch (e) {
+                        showToast(`BT Print Error: ${e.message}`, "error");
+                    }
+                }
+            });
+        }
+
+        // Table Refresh
+        if (btnRefreshTablesCounter) btnRefreshTablesCounter.addEventListener("click", loadCounterTables);
+
+        // Logout
+        if (btnLogout) {
+            btnLogout.addEventListener("click", async () => {
+                if (confirm("Do you want to lock the POS counter and logout?")) {
+                    try {
+                        await fetch("/api/logout", { method: "POST" });
+                    } catch (e) {}
+                    window.location.replace("/login");
+                }
+            });
+        }
+    }
+
+    function setPaperWidth(width) {
+        printerState.paperWidth = width;
+        if (window.MitrayaBluetoothPrinter) {
+            window.MitrayaBluetoothPrinter.setPaperWidth(width);
+        }
+        updatePrinterModalUI(printerState.connected, printerState.name, width);
+        // Save to server
+        fetch("/api/printer/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paper_width: width, printer_name: printerState.name })
+        }).catch(() => {});
+        showToast(`Paper width set to ${width}mm (${width === 58 ? '32' : '42'} columns)`, "success");
+    }
+
+    // ─── KEYBOARD SHORTCUTS (F2, F4, F7, F10, Ctrl+Enter, Alt+1/2/3) ───────────
+    function setupKeyboardShortcuts() {
+        window.addEventListener("keydown", (e) => {
+            // F2 or '/' to focus search
+            if (e.key === "F2" || (e.key === "/" && document.activeElement !== itemSearchInput)) {
+                e.preventDefault();
+                if (currentMode !== "WALK_IN") switchMode("WALK_IN");
+                if (itemSearchInput) itemSearchInput.focus();
+            }
+            // F4 to focus cash received
+            else if (e.key === "F4") {
+                e.preventDefault();
+                if (cashReceivedInput) cashReceivedInput.focus();
+            }
+            // F7 to focus discount
+            else if (e.key === "F7") {
+                e.preventDefault();
+                if (cartDiscountInput) cartDiscountInput.focus();
+            }
+            // F10 to clear cart
+            else if (e.key === "F10") {
+                e.preventDefault();
+                clearWalkinCart();
+            }
+            // Alt + 1 : Cash
+            else if (e.altKey && e.key === "1") {
+                e.preventDefault();
+                setPaymentMode("CASH");
+            }
+            // Alt + 2 : UPI
+            else if (e.altKey && e.key === "2") {
+                e.preventDefault();
+                setPaymentMode("UPI");
+            }
+            // Alt + 3 : Card
+            else if (e.altKey && e.key === "3") {
+                e.preventDefault();
+                setPaymentMode("CARD");
+            }
+            // Ctrl + Enter : Checkout / Settle
+            else if (e.ctrlKey && e.key === "Enter") {
+                e.preventDefault();
+                if (currentMode === "WALK_IN") {
+                    performWalkinCheckout();
+                } else {
+                    performTableSettlement();
+                }
+            }
+        });
+    }
+
+    // ─── MODE SWITCHING (WALK-IN vs DINING TABLES) ─────────────────────────────
+    function switchMode(mode) {
+        currentMode = mode;
+        if (mode === "WALK_IN") {
+            tabModeWalkin.classList.add("active");
+            tabModeDining.classList.remove("active");
+            walkinCatalogContainer.style.display = "flex";
+            diningFloorContainer.style.display = "none";
+
+            currentCartTitle.textContent = "Walk-in Order";
+            btnCheckoutOrder.style.display = "flex";
+            btnSettleTableTab.style.display = "none";
+            renderWalkinCart();
+        } else {
+            tabModeWalkin.classList.remove("active");
+            tabModeDining.classList.add("active");
+            walkinCatalogContainer.style.display = "none";
+            diningFloorContainer.style.display = "flex";
+
+            btnCheckoutOrder.style.display = "none";
+            btnSettleTableTab.style.display = "flex";
+            loadCounterTables();
+            if (selectedDiningOrder) {
+                renderDiningTableCart(selectedDiningOrder);
+            } else {
+                renderEmptyDiningCart();
+            }
+        }
+        updateFinancials();
+    }
+
+    // ─── CATALOG & DISH RENDERING ─────────────────────────────────────────────
     async function loadCatalog() {
         try {
             const res = await fetch("/api/pos/catalog");
             const data = await res.json();
-
-            if (res.ok && data.success) {
+            if (data.success) {
                 catalog = data.categories || [];
-                renderCategoryBar();
-                renderMenuGrid();
-            } else {
-                menuGrid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; color: var(--accent-rose); padding: 40px;">
-                        <i class="fa-solid fa-circle-exclamation fa-2x"></i>
-                        <p style="margin-top: 10px;">Failed to load menu catalog (${data.error || "Error"})</p>
-                    </div>`;
-            }
-        } catch (err) {
-            console.error("Error loading catalog:", err);
-            menuGrid.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; color: var(--accent-rose); padding: 40px;">
-                    <i class="fa-solid fa-triangle-exclamation fa-2x"></i>
-                    <p style="margin-top: 10px;">Network error loading menu catalog.</p>
-                </div>`;
-        }
-    }
-
-    // Render Category Pills
-    function renderCategoryBar() {
-        categoryBar.innerHTML = `<button type="button" class="category-pill ${activeCategoryId === "all" ? "active" : ""}" data-cat-id="all">All Items</button>`;
-
-        catalog.forEach(cat => {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = `category-pill ${activeCategoryId == cat.id ? "active" : ""}`;
-            btn.dataset.catId = cat.id;
-            btn.textContent = `${cat.name} (${cat.items ? cat.items.length : 0})`;
-            btn.addEventListener("click", () => {
-                activeCategoryId = cat.id;
-                document.querySelectorAll(".category-pill").forEach(p => p.classList.remove("active"));
-                btn.classList.add("active");
-                renderMenuGrid();
-            });
-            categoryBar.appendChild(btn);
-        });
-
-        // Click handler for All Items
-        const allBtn = categoryBar.querySelector('[data-cat-id="all"]');
-        if (allBtn) {
-            allBtn.addEventListener("click", () => {
-                activeCategoryId = "all";
-                document.querySelectorAll(".category-pill").forEach(p => p.classList.remove("active"));
-                allBtn.classList.add("active");
-                renderMenuGrid();
-            });
-        }
-    }
-
-    // Render Menu Items Grid with Search Filter
-    function renderMenuGrid() {
-        const query = (searchInput.value || "").trim().toLowerCase();
-        let itemsToDisplay = [];
-
-        catalog.forEach(cat => {
-            if (activeCategoryId === "all" || activeCategoryId == cat.id) {
-                if (cat.items) {
-                    itemsToDisplay.push(...cat.items);
-                }
-            }
-        });
-
-        // Filter by search query
-        if (query) {
-            itemsToDisplay = itemsToDisplay.filter(item =>
-                item.name.toLowerCase().includes(query) ||
-                (item.code && item.code.toLowerCase().includes(query)) ||
-                (item.category_name && item.category_name.toLowerCase().includes(query))
-            );
-        }
-
-        currentFilteredItems = itemsToDisplay;
-
-        if (itemsToDisplay.length === 0) {
-            menuGrid.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 50px 20px;">
-                    <i class="fa-solid fa-bowl-food fa-2x" style="opacity: 0.4;"></i>
-                    <p style="margin-top: 10px; font-size: 14px;">No matching food items found.</p>
-                </div>`;
-            return;
-        }
-
-        menuGrid.innerHTML = "";
-        itemsToDisplay.forEach(item => {
-            const card = document.createElement("div");
-            card.className = "menu-item-card";
-            card.innerHTML = `
-                <div>
-                    <span class="item-card-code">${item.code || ""}</span>
-                    <h4 class="item-card-name">${item.name}</h4>
-                </div>
-                <div class="item-card-bottom">
-                    <span class="item-card-price">${formatMoney(item.price)}</span>
-                    <div class="item-add-badge"><i class="fa-solid fa-plus"></i></div>
-                </div>
-            `;
-            card.addEventListener("click", () => {
-                addToCart(item);
-            });
-            menuGrid.appendChild(card);
-        });
-    }
-
-    // Search input listener
-    searchInput.addEventListener("input", renderMenuGrid);
-
-    // Search input Enter key handler: adds first match to cart
-    searchInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            if (currentFilteredItems && currentFilteredItems.length > 0) {
-                addToCart(currentFilteredItems[0]);
-                searchInput.value = "";
-                renderMenuGrid();
-            }
-        }
-    });
-
-    // Cart Management
-    function addToCart(item) {
-        const existing = cart.find(c => c.item_id === item.id);
-        if (existing) {
-            existing.quantity += 1;
-        } else {
-            cart.push({
-                item_id: item.id,
-                name: item.name,
-                unit_price: Number(item.price),
-                quantity: 1
-            });
-        }
-        updateCartUI();
-        showToast(`+1 ${item.name}`, "success");
-    }
-
-    function updateCartItemQty(index, delta) {
-        if (!cart[index]) return;
-        cart[index].quantity += delta;
-        if (cart[index].quantity <= 0) {
-            cart.splice(index, 1);
-        }
-        updateCartUI();
-    }
-
-    function removeCartItem(index) {
-        if (!cart[index]) return;
-        cart.splice(index, 1);
-        updateCartUI();
-    }
-
-    function clearCart() {
-        if (cart.length === 0) return;
-        cart = [];
-        discountAmount = 0;
-        if (cartDiscountInput) cartDiscountInput.value = 0;
-        if (cashReceivedInput) cashReceivedInput.value = "";
-        updateCartUI();
-        showToast("Cart cleared", "success");
-    }
-
-    btnClearCart.addEventListener("click", clearCart);
-
-    // Update Cart UI & Financial Calculations
-    function updateCartUI() {
-        const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-        cartCountBadge.textContent = totalItemsCount;
-
-        let subtotal = 0;
-        if (cart.length === 0) {
-            cartList.innerHTML = `
-                <div class="cart-empty-state">
-                    <i class="fa-solid fa-utensils"></i>
-                    <p>No items added yet.<br><small>Click on any dish card to add to order.</small></p>
-                </div>`;
-            cartSubtotalEl.textContent = formatMoney(0);
-            cartNetTotalEl.textContent = formatMoney(0);
-            btnCheckout.disabled = true;
-            btnCheckoutText.textContent = "Charge ₹0.00 & Print";
-            changeDisplay.textContent = "Change: ₹0.00";
-
-            if (mobileCartCount) mobileCartCount.textContent = "0 items";
-            if (mobileCartTotal) mobileCartTotal.textContent = "₹0.00";
-            return;
-        }
-
-        cartList.innerHTML = "";
-
-        cart.forEach((item, idx) => {
-            const lineTotal = item.quantity * item.unit_price;
-            subtotal += lineTotal;
-
-            const row = document.createElement("div");
-            row.className = "cart-item-row";
-            row.innerHTML = `
-                <div class="cart-item-info">
-                    <div class="cart-item-name" title="${item.name}">${item.name}</div>
-                    <div class="cart-item-rate">${formatMoney(item.unit_price)} × ${item.quantity}</div>
-                </div>
-                <div class="cart-qty-control">
-                    <button type="button" class="qty-btn btn-qty-minus" data-idx="${idx}"><i class="fa-solid fa-minus"></i></button>
-                    <span class="qty-val">${item.quantity}</span>
-                    <button type="button" class="qty-btn btn-qty-plus" data-idx="${idx}"><i class="fa-solid fa-plus"></i></button>
-                </div>
-                <div class="cart-item-total">${formatMoney(lineTotal)}</div>
-                <button type="button" class="btn-remove-item" data-idx="${idx}" title="Remove"><i class="fa-solid fa-xmark"></i></button>
-            `;
-
-            row.querySelector(".btn-qty-minus").addEventListener("click", (e) => {
-                e.stopPropagation();
-                updateCartItemQty(idx, -1);
-            });
-            row.querySelector(".btn-qty-plus").addEventListener("click", (e) => {
-                e.stopPropagation();
-                updateCartItemQty(idx, 1);
-            });
-            row.querySelector(".btn-remove-item").addEventListener("click", (e) => {
-                e.stopPropagation();
-                removeCartItem(idx);
-            });
-
-            cartList.appendChild(row);
-        });
-
-        // Discount & Net Total
-        discountAmount = Math.max(0, parseFloat(cartDiscountInput.value) || 0);
-        discountAmount = Math.min(discountAmount, subtotal);
-        const netTotal = Math.max(0, subtotal - discountAmount);
-
-        cartSubtotalEl.textContent = formatMoney(subtotal);
-        cartNetTotalEl.textContent = formatMoney(netTotal);
-
-        btnCheckout.disabled = false;
-        btnCheckoutText.textContent = `Charge ${formatMoney(netTotal)} & Print`;
-
-        // Update Mobile Bar
-        if (mobileCartCount) mobileCartCount.textContent = `${totalItemsCount} item${totalItemsCount > 1 ? 's' : ''}`;
-        if (mobileCartTotal) mobileCartTotal.textContent = formatMoney(netTotal);
-
-        // Update Cash Tender and Change
-        updateCashTenderCalculations(netTotal);
-    }
-
-    // Discount input changes
-    cartDiscountInput.addEventListener("input", updateCartUI);
-
-    // Payment Mode Switching
-    function setPaymentMode(mode) {
-        paymentMode = mode;
-        paymentModeButtons.forEach(b => {
-            if (b.dataset.mode === mode) {
-                b.classList.add("active");
-            } else {
-                b.classList.remove("active");
-            }
-        });
-
-        if (paymentMode === "CASH") {
-            cashTenderBox.style.display = "flex";
-        } else {
-            cashTenderBox.style.display = "none";
-        }
-        updateCartUI();
-    }
-
-    paymentModeButtons.forEach(btn => {
-        btn.addEventListener("click", () => {
-            setPaymentMode(btn.dataset.mode);
-        });
-    });
-
-    // Cash Tender Helpers
-    function updateCashTenderCalculations(netTotal) {
-        if (paymentMode !== "CASH") return;
-
-        const rawReceived = parseFloat(cashReceivedInput.value);
-        if (isNaN(rawReceived) || rawReceived <= 0) {
-            cashReceived = netTotal;
-            changeDisplay.textContent = "Change: ₹0.00";
-        } else {
-            cashReceived = rawReceived;
-            const change = Math.max(0, cashReceived - netTotal);
-            changeDisplay.textContent = `Change: ${formatMoney(change)}`;
-        }
-    }
-
-    cashReceivedInput.addEventListener("input", () => {
-        const netTotal = getNetTotal();
-        updateCashTenderCalculations(netTotal);
-    });
-
-    btnExactCash.addEventListener("click", () => {
-        const net = getNetTotal();
-        cashReceivedInput.value = net > 0 ? net : "";
-        updateCashTenderCalculations(net);
-    });
-
-    quickCashButtons.forEach(btn => {
-        btn.addEventListener("click", () => {
-            const val = parseFloat(btn.dataset.val);
-            cashReceivedInput.value = val;
-            updateCashTenderCalculations(getNetTotal());
-        });
-    });
-
-    function getNetTotal() {
-        const subtotal = cart.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
-        const disc = Math.min(subtotal, Math.max(0, parseFloat(cartDiscountInput.value) || 0));
-        return Math.max(0, subtotal - disc);
-    }
-
-    // Mobile Drawer Controls
-    if (btnOpenMobileCart && cartPane) {
-        btnOpenMobileCart.addEventListener("click", () => {
-            cartPane.classList.add("mobile-open");
-        });
-    }
-
-    if (btnMobileCloseCart && cartPane) {
-        btnMobileCloseCart.addEventListener("click", () => {
-            cartPane.classList.remove("mobile-open");
-        });
-    }
-
-    // =========================================================================
-    // Dual Billing Mode (Walk-in vs Dining) & 12 Tables Management
-    // =========================================================================
-
-    function setOrderMode(mode, loadTab = true) {
-        orderMode = mode;
-        if (mode === "DINING") {
-            tabModeDining.classList.add("active");
-            tabModeWalkin.classList.remove("active");
-            diningTableBanner.style.display = "flex";
-            diningActionButtons.style.display = "flex";
-            if (walkinTableContainer) walkinTableContainer.style.display = "none";
-            btnCheckout.style.display = "none";
-            cartHeadingTitle.textContent = `Table ${selectedTableNumber} Order`;
-            cartSelectedTableBadge.innerHTML = `<i class="fa-solid fa-chair"></i> Table ${selectedTableNumber}`;
-            if (loadTab) {
-                loadTableActiveOrder(selectedTableNumber);
-            }
-        } else {
-            orderMode = "WALK_IN";
-            tabModeWalkin.classList.add("active");
-            tabModeDining.classList.remove("active");
-            diningTableBanner.style.display = "none";
-            diningActionButtons.style.display = "none";
-            if (walkinTableContainer) walkinTableContainer.style.display = "flex";
-            btnCheckout.style.display = "flex";
-            cartHeadingTitle.textContent = "Walk-in Order";
-        }
-        updateCartUI();
-    }
-
-
-    if (tabModeWalkin) {
-        tabModeWalkin.addEventListener("click", () => setOrderMode("WALK_IN"));
-    }
-
-    if (tabModeDining) {
-        tabModeDining.addEventListener("click", () => {
-            setOrderMode("DINING");
-            openTablesModal();
-        });
-    }
-
-    // Load active order on a specific Table (1-12)
-    async function loadTableActiveOrder(tableNo) {
-        try {
-            const res = await fetch(`/api/pos/tables/${tableNo}`);
-            const data = await res.json();
-            if (res.ok && data.success) {
-                if (data.status === "OCCUPIED" && data.bill) {
-                    currentTableOrder = data.bill;
-                    cart = (data.bill.items || []).map(i => ({
-                        item_id: i.menu_item_id,
-                        name: i.item_name,
-                        unit_price: Number(i.unit_price),
-                        quantity: Number(i.quantity)
-                    }));
-                    cartDiscountInput.value = data.bill.discount || 0;
-                    cartTableStatusPill.textContent = `Running Tab (${formatMoney(data.bill.total_amount)})`;
-                    cartTableStatusPill.style.background = "rgba(245, 158, 11, 0.25)";
-                    cartTableStatusPill.style.color = "#fbbf24";
-                    showToast(`Loaded Table ${tableNo} (${cart.length} items)`, "info");
-                } else {
-                    currentTableOrder = null;
-                    cart = [];
-                    discountAmount = 0;
-                    if (cartDiscountInput) cartDiscountInput.value = 0;
-                    if (cashReceivedInput) cashReceivedInput.value = "";
-                    cartTableStatusPill.textContent = "Vacant / New Tab";
-                    cartTableStatusPill.style.background = "rgba(16, 185, 129, 0.2)";
-                    cartTableStatusPill.style.color = "#34d399";
-                }
-                updateCartUI();
-            }
-        } catch (err) {
-            console.error("Error loading table order:", err);
-        }
-    }
-
-
-    // Select Table from Modal
-    function selectTable(tableNo) {
-        selectedTableNumber = tableNo;
-        setOrderMode("DINING", false);
-        loadTableActiveOrder(tableNo);
-        closeTablesModal();
-    }
-
-    // Tables Modal Management
-    async function loadTablesModalData() {
-        try {
-            modalTablesGrid.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 30px;">
-                    <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-                    <p style="margin-top: 10px;">Loading tables status...</p>
-                </div>`;
-
-            const res = await fetch("/api/pos/tables");
-            const data = await res.json();
-
-            if (res.ok && data.success) {
-                modalTablesGrid.innerHTML = "";
-                if (headerTablesLabel) {
-                    headerTablesLabel.textContent = `Tables (${data.occupied_count}/12)`;
-                }
-
-                data.tables.forEach(t => {
-                    const isOcc = t.status === "OCCUPIED";
-                    const isCurrent = orderMode === "DINING" && selectedTableNumber === t.table_number;
-                    const card = document.createElement("div");
-                    card.className = `modal-table-card ${isOcc ? "occupied" : "vacant"} ${isCurrent ? "selected" : ""}`;
-                    card.innerHTML = `
-                        <div class="modal-table-card-num"><i class="fa-solid fa-chair"></i> Table ${t.table_number}</div>
-                        <div class="modal-table-card-status">${isOcc ? "● Occupied" : "● Vacant"}</div>
-                        <div class="modal-table-card-items">${isOcc ? `${t.items_count} items (${t.elapsed_minutes}m)` : "Ready"}</div>
-                        <div class="modal-table-card-total">${isOcc ? formatMoney(t.total_amount) : "₹0.00"}</div>
-                    `;
-                    card.addEventListener("click", () => {
-                        selectTable(t.table_number);
-                    });
-                    modalTablesGrid.appendChild(card);
+                allMenuItems = [];
+                catalog.forEach(cat => {
+                    if (cat.items) {
+                        cat.items.forEach(item => {
+                            allMenuItems.push({ ...item, category_name: cat.name });
+                        });
+                    }
                 });
+                renderCategoryPills();
+                renderMenuItems();
             }
         } catch (e) {
-            console.error("Error loading tables:", e);
-            modalTablesGrid.innerHTML = `<div style="grid-column:1/-1; color:var(--brand-crimson); text-align:center;">Failed to load tables.</div>`;
+            console.error("Failed to load catalog:", e);
         }
     }
 
-    function openTablesModal() {
-        loadTablesModalData();
-        if (tablesModal) tablesModal.classList.add("active");
+    function renderCategoryPills() {
+        if (!categoryPillsBar) return;
+        categoryPillsBar.innerHTML = `<button type="button" class="category-pill ${activeCategory === 'all' ? 'active' : ''}" data-cat-id="all">All Items (${allMenuItems.length})</button>`;
+        catalog.forEach(cat => {
+            const count = (cat.items || []).length;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `category-pill ${activeCategory === String(cat.id) ? 'active' : ''}`;
+            btn.setAttribute("data-cat-id", String(cat.id));
+            btn.textContent = `${cat.name} (${count})`;
+            btn.addEventListener("click", () => {
+                activeCategory = String(cat.id);
+                document.querySelectorAll(".category-pill").forEach(p => p.classList.remove("active"));
+                btn.classList.add("active");
+                renderMenuItems();
+            });
+            categoryPillsBar.appendChild(btn);
+        });
+
+        // Add listener to 'All Items'
+        categoryPillsBar.querySelector('[data-cat-id="all"]').addEventListener("click", () => {
+            activeCategory = "all";
+            document.querySelectorAll(".category-pill").forEach(p => p.classList.remove("active"));
+            categoryPillsBar.querySelector('[data-cat-id="all"]').classList.add("active");
+            renderMenuItems();
+        });
     }
 
-    function closeTablesModal() {
-        if (tablesModal) tablesModal.classList.remove("active");
-    }
+    function renderMenuItems() {
+        if (!menuItemsGrid) return;
+        const query = (itemSearchInput ? itemSearchInput.value : "").trim().toLowerCase();
 
-    if (btnOpenTablesModal) btnOpenTablesModal.addEventListener("click", openTablesModal);
-    if (btnChangeTable) btnChangeTable.addEventListener("click", openTablesModal);
-    if (btnCloseTablesModal) btnCloseTablesModal.addEventListener("click", closeTablesModal);
-    if (btnDismissTablesModal) btnDismissTablesModal.addEventListener("click", closeTablesModal);
+        let filtered = allMenuItems.filter(item => {
+            const matchCat = activeCategory === "all" || String(item.category_id) === activeCategory;
+            const matchQuery = !query || item.name.toLowerCase().includes(query) || (item.category_name && item.category_name.toLowerCase().includes(query));
+            return matchCat && matchQuery && item.is_available !== false;
+        });
 
-    // Save Table Tab (Incremental Dining Order)
-    async function saveDiningTableTab() {
-        if (cart.length === 0) {
-            showToast("Cart is empty. Add dishes to Table tab first.", "error");
+        if (filtered.length === 0) {
+            menuItemsGrid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="fa-solid fa-utensils fa-2x" style="opacity: 0.3;"></i>
+                    <p style="margin-top: 10px;">No matching dishes found.</p>
+                </div>
+            `;
             return;
         }
 
-        btnSaveTableTab.disabled = true;
-        btnSaveTabText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        menuItemsGrid.innerHTML = "";
+        filtered.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "dish-card";
+            const inCartQty = walkinCart[item.id] ? walkinCart[item.id].quantity : 0;
 
-        try {
-            const payload = {
-                table_number: selectedTableNumber,
-                items: cart.map(i => ({
-                    menu_item_id: i.item_id,
-                    name: i.name,
-                    unit_price: i.unit_price,
-                    quantity: i.quantity
-                }))
-            };
+            card.innerHTML = `
+                ${inCartQty > 0 ? `<span class="dish-badge-qty">${inCartQty}</span>` : ''}
+                <div class="dish-card-header">
+                    <div style="display: flex; align-items: flex-start; gap: 8px;">
+                        <span class="veg-icon"><span class="veg-icon-dot"></span></span>
+                        <div class="dish-title">${item.name}</div>
+                    </div>
+                </div>
+                <div class="dish-card-footer">
+                    <span class="dish-price">₹${Number(item.price).toFixed(0)}</span>
+                    <button type="button" class="dish-add-btn" title="Add to cart">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+            `;
 
-            const res = await fetch("/api/pos/tables/save-tab", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+            card.addEventListener("click", () => {
+                addDishToWalkinCart(item);
             });
 
-            const data = await res.json();
-            if (res.ok && data.success) {
-                currentTableOrder = data.bill;
-                showToast(`Table ${selectedTableNumber} tab saved! (${data.bill.items_count} items)`, "success");
-                cartTableStatusPill.textContent = `Running Tab (${formatMoney(data.bill.total_amount)})`;
-                cartTableStatusPill.style.background = "rgba(245, 158, 11, 0.25)";
-                cartTableStatusPill.style.color = "#fbbf24";
-                loadTablesModalData();
-            } else {
-                showToast(data.error || "Failed to save table tab", "error");
-            }
-        } catch (err) {
-            console.error("Save tab error:", err);
-            showToast("Network error saving table tab", "error");
-        } finally {
-            btnSaveTableTab.disabled = false;
-            btnSaveTabText.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Save / Add to Table';
+            menuItemsGrid.appendChild(card);
+        });
+    }
+
+    function addDishToWalkinCart(item) {
+        if (walkinCart[item.id]) {
+            walkinCart[item.id].quantity += 1;
+        } else {
+            walkinCart[item.id] = {
+                item: item,
+                quantity: 1,
+                notes: ""
+            };
         }
+        renderWalkinCart();
+        renderMenuItems(); // Update badge on card
     }
 
-    if (btnSaveTableTab) {
-        btnSaveTableTab.addEventListener("click", saveDiningTableTab);
+    function updateWalkinItemQty(itemId, delta) {
+        if (!walkinCart[itemId]) return;
+        walkinCart[itemId].quantity += delta;
+        if (walkinCart[itemId].quantity <= 0) {
+            delete walkinCart[itemId];
+        }
+        renderWalkinCart();
+        renderMenuItems();
     }
 
-    // Settle Dining Table Tab (Final Checkout & Receipt)
-    async function settleDiningTableTab() {
-        if (cart.length === 0) {
-            showToast("Cart is empty. Nothing to settle.", "error");
+    function clearWalkinCart() {
+        walkinCart = {};
+        renderWalkinCart();
+        renderMenuItems();
+        showToast("Cart cleared", "warning", 1500);
+    }
+
+    function renderWalkinCart() {
+        if (!cartItemsList) return;
+        const entries = Object.values(walkinCart);
+        const totalCount = entries.reduce((sum, e) => sum + e.quantity, 0);
+        if (cartCountBadge) cartCountBadge.textContent = `${totalCount} items`;
+
+        if (entries.length === 0) {
+            cartItemsList.innerHTML = `
+                <div class="cart-empty-state">
+                    <i class="fa-solid fa-utensils"></i>
+                    <p>No dishes added yet.<br><small>Click on any dish card to add to order.</small></p>
+                </div>
+            `;
+            updateFinancials();
             return;
         }
 
-        const netTotal = getNetTotal();
-        btnSettleTableTab.disabled = true;
-        btnSettleTabText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Settling...';
+        cartItemsList.innerHTML = "";
+        entries.forEach(entry => {
+            const row = document.createElement("div");
+            row.className = "cart-item-row";
+            const lineTotal = entry.quantity * entry.item.price;
 
-        try {
-            const payload = {
-                table_number: selectedTableNumber,
-                items: cart.map(i => ({
-                    menu_item_id: i.item_id,
-                    name: i.name,
-                    unit_price: i.unit_price,
-                    quantity: i.quantity
-                })),
-                discount: discountAmount,
-                payment_mode: paymentMode,
-                received_amount: paymentMode === "CASH" ? (parseFloat(cashReceivedInput.value) || netTotal) : netTotal
-            };
+            row.innerHTML = `
+                <div class="cart-item-info">
+                    <div class="cart-item-name">${entry.item.name}</div>
+                    <div class="cart-item-meta">₹${Number(entry.item.price).toFixed(0)} each</div>
+                </div>
+                <div class="cart-qty-controls">
+                    <button type="button" class="btn-qty btn-minus"><i class="fa-solid fa-minus"></i></button>
+                    <span class="qty-val">${entry.quantity}</span>
+                    <button type="button" class="btn-qty btn-plus"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div class="cart-item-total">₹${lineTotal.toFixed(2)}</div>
+                <button type="button" class="btn-item-delete" title="Remove"><i class="fa-solid fa-trash-can"></i></button>
+            `;
 
-            const res = await fetch("/api/pos/tables/settle", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+            row.querySelector(".btn-minus").addEventListener("click", (e) => {
+                e.stopPropagation();
+                updateWalkinItemQty(entry.item.id, -1);
+            });
+            row.querySelector(".btn-plus").addEventListener("click", (e) => {
+                e.stopPropagation();
+                updateWalkinItemQty(entry.item.id, 1);
+            });
+            row.querySelector(".btn-item-delete").addEventListener("click", (e) => {
+                e.stopPropagation();
+                delete walkinCart[entry.item.id];
+                renderWalkinCart();
+                renderMenuItems();
             });
 
+            cartItemsList.appendChild(row);
+        });
+
+        updateFinancials();
+    }
+
+    // ─── 12 RESTAURANT DINING TABLES FLOOR ─────────────────────────────────────
+    async function loadCounterTables() {
+        try {
+            const res = await fetch("/api/pos/tables");
             const data = await res.json();
-            if (res.ok && data.success) {
-                currentReceiptBill = data.bill;
-                showToast(`Table ${selectedTableNumber} settled! (#${data.bill.bill_number}) Sent to Printer`, "success");
+            if (data.success && data.tables) {
+                tablesData = data.tables;
+                renderDiningTablesGrid(data.tables);
 
-                // Clear Table cart state
-                cart = [];
-                discountAmount = 0;
-                if (cartDiscountInput) cartDiscountInput.value = 0;
-                if (cashReceivedInput) cashReceivedInput.value = "";
-                currentTableOrder = null;
-                cartTableStatusPill.textContent = "Vacant / Settled";
-                cartTableStatusPill.style.background = "rgba(16, 185, 129, 0.2)";
-                cartTableStatusPill.style.color = "#059669";
-                updateCartUI();
-                loadTablesModalData();
-
-            } else {
-                showToast(data.error || "Failed to settle table", "error");
+                // Update active table count badge
+                const occupiedCount = data.tables.filter(t => t.status === "OCCUPIED").length;
+                if (activeTablesBadge) {
+                    activeTablesBadge.textContent = occupiedCount;
+                    activeTablesBadge.style.display = occupiedCount > 0 ? "inline-block" : "none";
+                }
             }
-        } catch (err) {
-            console.error("Settle error:", err);
-            showToast("Network error settling table", "error");
-        } finally {
-            btnSettleTableTab.disabled = false;
-            btnSettleTabText.innerHTML = '<i class="fa-solid fa-check-double"></i> Settle &amp; Print Bill';
+        } catch (e) {
+            console.error("Failed to load tables:", e);
         }
     }
 
-    if (btnSettleTableTab) {
-        btnSettleTableTab.addEventListener("click", settleDiningTableTab);
+    function renderDiningTablesGrid(tables) {
+        if (!counterTablesGrid) return;
+        counterTablesGrid.innerHTML = "";
+
+        tables.forEach(table => {
+            const isOccupied = (table.status === "OCCUPIED" || (table.items && table.items.length > 0) || !!table.order_id);
+            const isSelected = (selectedDiningTableNo === table.table_number);
+            const card = document.createElement("div");
+            card.className = `table-box-card ${isOccupied ? 'occupied' : 'vacant'} ${isSelected ? 'selected' : ''}`;
+
+            const order = table.active_bill || table.active_order || table;
+            const subtotal = order ? (order.subtotal || order.total_amount || 0) : 0;
+            const itemsCount = (order && order.items) ? order.items.length : (table.items_count || 0);
+            const waiter = (order && (order.created_by || order.created_by_role || order.server_name)) || "Staff";
+
+            card.innerHTML = `
+                <div class="table-box-header">
+                    <span class="table-number-label">TABLE ${String(table.table_number).padStart(2, '0')}</span>
+                    <span class="table-status-pill ${isOccupied ? 'occupied' : 'vacant'}">${isOccupied ? 'OCCUPIED' : 'VACANT'}</span>
+                </div>
+                <div class="table-details-body">
+                    ${isOccupied ? `
+                        <div class="table-occupied-info">
+                            <span class="table-running-amount">₹${Number(subtotal).toFixed(2)}</span>
+                            <span class="table-meta-text"><i class="fa-solid fa-bowl-food"></i> ${itemsCount} dishes ordered</span>
+                            <span class="table-meta-text"><i class="fa-solid fa-user-tie"></i> Server: ${waiter}</span>
+                        </div>
+                    ` : `
+                        <div class="table-vacant-info">
+                            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Table Ready for Guests
+                        </div>
+                    `}
+                </div>
+                <div class="table-box-footer">
+                    <span>${isOccupied ? '⚡ Click to Settle & Bill' : 'Tap to take order'}</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+            `;
+
+            card.addEventListener("click", () => {
+                selectDiningTable(table);
+            });
+
+            counterTablesGrid.appendChild(card);
+        });
     }
 
-    // Walk-in Checkout Order Submission
-    async function submitOrder() {
-        if (orderMode === "DINING") {
-            settleDiningTableTab();
+    function selectDiningTable(table) {
+        selectedDiningTableNo = table.table_number;
+        const isOccupied = (table.status === "OCCUPIED" || (table.items && table.items.length > 0) || !!table.order_id);
+
+        // Highlight selected card
+        document.querySelectorAll(".table-box-card").forEach(c => c.classList.remove("selected"));
+
+        if (isOccupied) {
+            selectedDiningOrder = table.active_bill || table.active_order || table;
+            renderDiningTableCart(selectedDiningOrder);
+            showToast(`Table ${table.table_number} tab loaded into settlement panel`, "success", 2000);
+        } else {
+            selectedDiningOrder = null;
+            renderEmptyDiningCart(table.table_number);
+            showToast(`Table ${table.table_number} is vacant`, "warning", 2000);
+        }
+    }
+
+    function renderDiningTableCart(order) {
+        if (!cartItemsList) return;
+        currentCartTitle.textContent = `Table ${order.table_number || selectedDiningTableNo} Settle`;
+        
+        const items = order.items || [];
+        if (cartCountBadge) cartCountBadge.textContent = `${items.length} items`;
+
+        cartItemsList.innerHTML = "";
+        items.forEach(item => {
+            const row = document.createElement("div");
+            row.className = "cart-item-row";
+            const qty = item.quantity || 1;
+            const price = item.unit_price || item.price || 0;
+            const lineTotal = item.total_price || (qty * price);
+
+            row.innerHTML = `
+                <div class="cart-item-info">
+                    <div class="cart-item-name">${item.item_name || item.name}</div>
+                    <div class="cart-item-meta">₹${Number(price).toFixed(0)} × ${qty} ${item.item_notes ? `(${item.item_notes})` : ''}</div>
+                </div>
+                <div class="cart-item-total">₹${lineTotal.toFixed(2)}</div>
+            `;
+            cartItemsList.appendChild(row);
+        });
+
+        if (btnSettleTabText) {
+            btnSettleTabText.textContent = `Settle Table ${order.table_number || selectedDiningTableNo} & Print`;
+        }
+
+        updateFinancials();
+    }
+
+    function renderEmptyDiningCart(tableNo) {
+        if (!cartItemsList) return;
+        currentCartTitle.textContent = tableNo ? `Table ${tableNo} (Vacant)` : "Select Table";
+        if (cartCountBadge) cartCountBadge.textContent = "0 items";
+        cartItemsList.innerHTML = `
+            <div class="cart-empty-state">
+                <i class="fa-solid fa-chair"></i>
+                <p>Click on any occupied table on the left to view active dishes and settle bill.</p>
+            </div>
+        `;
+        if (btnSettleTabText) {
+            btnSettleTabText.textContent = "Select Table to Settle";
+        }
+        updateFinancials();
+    }
+
+    // ─── FINANCIAL CALCULATIONS & PAYMENT MODES ───────────────────────────────
+    function getSubtotal() {
+        if (currentMode === "WALK_IN") {
+            return Object.values(walkinCart).reduce((sum, e) => sum + (e.quantity * e.item.price), 0);
+        } else {
+            if (!selectedDiningOrder) return 0;
+            return selectedDiningOrder.subtotal || selectedDiningOrder.total_amount || 0;
+        }
+    }
+
+    function getNetTotal() {
+        const sub = getSubtotal();
+        const disc = parseFloat(cartDiscountInput ? cartDiscountInput.value : 0) || 0;
+        return Math.max(0, sub - disc);
+    }
+
+    function updateFinancials() {
+        const sub = getSubtotal();
+        const disc = parseFloat(cartDiscountInput ? cartDiscountInput.value : 0) || 0;
+        const net = Math.max(0, sub - disc);
+
+        if (cartSubtotalEl) cartSubtotalEl.textContent = `₹${sub.toFixed(2)}`;
+        if (cartNetTotalEl) cartNetTotalEl.textContent = `₹${net.toFixed(2)}`;
+
+        if (btnCheckoutText) {
+            btnCheckoutText.textContent = `Charge ₹${net.toFixed(2)} & Print Bill`;
+        }
+        if (btnSettleTabText && selectedDiningOrder) {
+            btnSettleTabText.textContent = `Settle ₹${net.toFixed(2)} & Print Bill`;
+        }
+
+        updateChangeCalculation();
+    }
+
+    function setPaymentMode(mode) {
+        currentPaymentMode = mode;
+        paymentTabs.forEach(tab => {
+            if (tab.getAttribute("data-mode") === mode) {
+                tab.classList.add("active");
+            } else {
+                tab.classList.remove("active");
+            }
+        });
+
+        if (cashTenderContainer) {
+            cashTenderContainer.style.display = (mode === "CASH") ? "flex" : "none";
+        }
+    }
+
+    function updateChangeCalculation() {
+        if (currentPaymentMode !== "CASH" || !cashReceivedInput || !changeDisplay) return;
+        const rec = parseFloat(cashReceivedInput.value) || 0;
+        const net = getNetTotal();
+        const change = Math.max(0, rec - net);
+        changeDisplay.textContent = `Change: ₹${change.toFixed(2)}`;
+    }
+
+    // ─── DIRECT WALK-IN CHECKOUT WITH PRINTER DISPATCH ─────────────────────────
+    async function performWalkinCheckout() {
+        const entries = Object.values(walkinCart);
+        if (entries.length === 0) {
+            showToast("Please add items to cart before checkout!", "warning");
             return;
         }
 
-        if (cart.length === 0) {
-            showToast("Cart is empty. Add dishes first.", "error");
-            return;
-        }
+        const net = getNetTotal();
+        const disc = parseFloat(cartDiscountInput ? cartDiscountInput.value : 0) || 0;
+        const rec = currentPaymentMode === "CASH" ? (parseFloat(cashReceivedInput ? cashReceivedInput.value : net) || net) : net;
 
-        const netTotal = getNetTotal();
-        const walkinTableVal = walkinTableSelect ? walkinTableSelect.value : "";
         const payload = {
             order_type: "WALK_IN",
-            table_number: null,
-            notes: walkinTableVal || "Walk-in Counter",
-            items: cart.map(i => ({
-                menu_item_id: i.item_id,
-                name: i.name,
-                unit_price: i.unit_price,
-                quantity: i.quantity
-            })),
-            discount: discountAmount,
-            payment_mode: paymentMode,
-            received_amount: paymentMode === "CASH" ? (parseFloat(cashReceivedInput.value) || netTotal) : netTotal
+            customer_name: "Walk-in Customer",
+            payment_mode: currentPaymentMode,
+            discount: disc,
+            received_amount: rec,
+            items: entries.map(e => ({
+                menu_item_id: e.item.id,
+                name: e.item.name,
+                unit_price: e.item.price,
+                quantity: e.quantity,
+                notes: e.notes || ""
+            }))
         };
 
-        btnCheckout.disabled = true;
-        btnCheckoutText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        btnCheckoutOrder.disabled = true;
+        btnCheckoutOrder.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing Bill...`;
 
         try {
             const res = await fetch("/api/pos/checkout", {
@@ -761,483 +949,252 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
-
             const data = await res.json();
 
-            if (res.ok && data.success) {
-                currentReceiptBill = data.bill;
-                showToast(`Order #${data.bill.bill_number} placed! Sent to Display Screen & Printer`, "success");
+            if (data.success && data.bill) {
+                lastGeneratedBill = data.bill;
                 
-                // If on mobile, close drawer
-                if (cartPane) cartPane.classList.remove("mobile-open");
-
-                // Clear current cart for next customer
-                cart = [];
-                discountAmount = 0;
-                if (cartDiscountInput) cartDiscountInput.value = 0;
+                // Clear cart immediately
+                walkinCart = {};
+                if (cartDiscountInput) cartDiscountInput.value = "0";
                 if (cashReceivedInput) cashReceivedInput.value = "";
-                if (walkinTableSelect) walkinTableSelect.value = "";
-                updateCartUI();
+                renderWalkinCart();
+                renderMenuItems();
+
+                // Step: Direct Thermal Print Execution
+                await handleDirectThermalPrint(data.bill);
 
             } else {
-                showToast(data.error || "Failed to process order", "error");
+                showToast(`Checkout Failed: ${data.error || 'Server error'}`, "error");
             }
-        } catch (err) {
-            console.error("Checkout error:", err);
-            showToast("Network error while submitting order", "error");
+        } catch (e) {
+            showToast(`Connection Error: ${e.message}`, "error");
         } finally {
-            btnCheckout.disabled = false;
-            updateCartUI();
+            btnCheckoutOrder.disabled = false;
+            updateFinancials();
         }
     }
 
-    btnCheckout.addEventListener("click", submitOrder);
-
-    // Thermal Receipt Rendering
-    function renderThermalReceipt(bill) {
-        currentReceiptBill = bill;
-        const isDining = bill.order_type === "DINING" || (bill.table_number && bill.table_number > 0);
-        const rcptTableEl = document.getElementById("rcpt-table-no");
-        if (rcptTableEl) {
-            const tableLabel = isDining ? `TABLE: Table ${bill.table_number}` : (bill.notes ? `TABLE: ${bill.notes}` : "TABLE: Walk-in Counter");
-            rcptTableEl.textContent = tableLabel;
-        }
-        const rcptOrderTypeEl = document.getElementById("rcpt-order-type");
-        if (rcptOrderTypeEl) {
-            rcptOrderTypeEl.textContent = `Type: ${bill.order_type || (isDining ? 'DINING' : 'WALK-IN')}`;
+    // ─── DIRECT TABLE SETTLEMENT WITH PRINTER DISPATCH ─────────────────────────
+    async function performTableSettlement() {
+        if (!selectedDiningTableNo || !selectedDiningOrder) {
+            showToast("Please select an occupied table to settle!", "warning");
+            return;
         }
 
+        const net = getNetTotal();
+        const disc = parseFloat(cartDiscountInput ? cartDiscountInput.value : 0) || 0;
+        const rec = currentPaymentMode === "CASH" ? (parseFloat(cashReceivedInput ? cashReceivedInput.value : net) || net) : net;
 
-        document.getElementById("rcpt-bill-no").textContent = `Bill: ${bill.bill_number}`;
-        document.getElementById("rcpt-date").textContent = bill.created_at || new Date().toLocaleString();
-        document.getElementById("rcpt-cashier").textContent = `Staff: ${bill.cashier_role || "Cashier"}`;
-        document.getElementById("rcpt-mode").textContent = `Mode: ${bill.payment_mode}`;
+        const payload = {
+            table_number: selectedDiningTableNo,
+            payment_mode: currentPaymentMode,
+            discount: disc,
+            received_amount: rec,
+            customer_name: selectedDiningOrder.customer_name || `Table ${selectedDiningTableNo}`
+        };
 
-        const tbody = document.getElementById("rcpt-items-body");
-        tbody.innerHTML = "";
+        btnSettleTableTab.disabled = true;
+        btnSettleTableTab.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Finalizing Table...`;
 
-        if (bill.items) {
-            bill.items.forEach(item => {
+        try {
+            const res = await fetch("/api/pos/tables/settle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (data.success && data.bill) {
+                lastGeneratedBill = data.bill;
+
+                showToast(`Table ${selectedDiningTableNo} Settled! Bill #${data.bill.bill_number}`, "success");
+
+                // Reset selection & refresh floor tables
+                selectedDiningOrder = null;
+                selectedDiningTableNo = null;
+                if (cartDiscountInput) cartDiscountInput.value = "0";
+                if (cashReceivedInput) cashReceivedInput.value = "";
+                renderEmptyDiningCart();
+                await loadCounterTables();
+
+                // Step: Direct Thermal Print Execution
+                await handleDirectThermalPrint(data.bill);
+
+            } else {
+                showToast(`Settlement Failed: ${data.error || 'Check active order'}`, "error");
+            }
+        } catch (e) {
+            showToast(`Connection Error: ${e.message}`, "error");
+        } finally {
+            btnSettleTableTab.disabled = false;
+            updateFinancials();
+        }
+    }
+
+    // ─── DIRECT THERMAL PRINTING OR GRACEFUL DISCONNECTED ALERT ────────────────
+    async function handleDirectThermalPrint(bill) {
+        // Case 1: Bluetooth Thermal Printer is Connected
+        if (printerState.type === "BLUETOOTH" && window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected()) {
+            try {
+                await window.MitrayaBluetoothPrinter.printReceipt(bill);
+                showToast(`Receipt #${bill.bill_number} printed via Bluetooth!`, "success");
+                return;
+            } catch (be) {
+                console.warn("BT print error:", be);
+                showToast(`Bluetooth print failed: ${be.message}`, "warning");
+            }
+        }
+
+        // Case 2: System / Spooler / Windows Driver is Connected & Ready
+        if (printerState.connected && printerState.type === "SYSTEM") {
+            showToast(`Bill #${bill.bill_number} saved & thermal print dispatched!`, "success");
+            return;
+        }
+
+        // Case 3: PRINTER NOT CONNECTED!
+        // Show prominent warning and open receipt preview so cashier can print or connect
+        showToast(`⚠️ PRINTER NOT CONNECTED! Bill #${bill.bill_number} saved successfully.`, "warning", 6000);
+        openReceiptPreviewModal(bill);
+    }
+
+    // ─── RECEIPT MODAL PREVIEW & POPULATION ───────────────────────────────────
+    function openReceiptPreviewModal(bill) {
+        if (!receiptModal) return;
+        lastGeneratedBill = bill;
+
+        // Populate receipt fields
+        const rcptTableNo = document.getElementById("rcpt-table-no");
+        const rcptBillNo = document.getElementById("rcpt-bill-no");
+        const rcptDate = document.getElementById("rcpt-date");
+        const rcptCashier = document.getElementById("rcpt-cashier");
+        const rcptMode = document.getElementById("rcpt-mode");
+        const rcptOrderType = document.getElementById("rcpt-order-type");
+        const rcptItemsBody = document.getElementById("rcpt-items-body");
+        const rcptSubtotal = document.getElementById("rcpt-subtotal");
+        const rcptDiscount = document.getElementById("rcpt-discount");
+        const rcptTotal = document.getElementById("rcpt-total");
+        const rcptTendered = document.getElementById("rcpt-tendered");
+        const rcptChange = document.getElementById("rcpt-change");
+        const rcptBarcodeText = document.getElementById("rcpt-barcode-text");
+
+        if (rcptTableNo) rcptTableNo.textContent = bill.table_number ? `TABLE: ${bill.table_number}` : `TABLE: Walk-in`;
+        if (rcptBillNo) rcptBillNo.textContent = `Bill: ${bill.bill_number}`;
+        if (rcptDate) rcptDate.textContent = bill.created_at || new Date().toLocaleString("en-IN");
+        if (rcptCashier) rcptCashier.textContent = `Cashier: ${bill.cashier_role || "Staff"}`;
+        if (rcptMode) rcptMode.textContent = `Mode: ${bill.payment_mode || "CASH"}`;
+        if (rcptOrderType) rcptOrderType.textContent = `Type: ${bill.order_type || "WALK-IN"}`;
+        if (rcptSubtotal) rcptSubtotal.textContent = `₹${Number(bill.subtotal || 0).toFixed(2)}`;
+        if (rcptDiscount) rcptDiscount.textContent = `-₹${Number(bill.discount || 0).toFixed(2)}`;
+        if (rcptTotal) rcptTotal.textContent = `₹${Number(bill.total_amount || 0).toFixed(2)}`;
+        if (rcptTendered) rcptTendered.textContent = `₹${Number(bill.received_amount || bill.total_amount || 0).toFixed(2)}`;
+        if (rcptChange) rcptChange.textContent = `₹${Number(bill.change_amount || 0).toFixed(2)}`;
+        if (rcptBarcodeText) rcptBarcodeText.textContent = bill.bill_number;
+
+        if (rcptItemsBody) {
+            rcptItemsBody.innerHTML = "";
+            (bill.items || []).forEach(item => {
                 const tr = document.createElement("tr");
+                const qty = item.quantity || 1;
+                const rate = item.unit_price || 0;
+                const amt = item.total_price || (qty * rate);
                 tr.innerHTML = `
-                    <td class="col-item">${item.item_name}</td>
-                    <td class="col-qty">${item.quantity}</td>
-                    <td class="col-rate">${item.unit_price}</td>
-                    <td class="col-amt">${item.total_price.toFixed(2)}</td>
+                    <td class="col-item">${item.item_name || item.name}</td>
+                    <td class="col-qty">${qty}</td>
+                    <td class="col-rate">${Number(rate).toFixed(0)}</td>
+                    <td class="col-amt">${Number(amt).toFixed(2)}</td>
                 `;
-                tbody.appendChild(tr);
+                rcptItemsBody.appendChild(tr);
             });
         }
 
-        document.getElementById("rcpt-subtotal").textContent = formatMoney(bill.subtotal);
-        
-        const discRow = document.getElementById("rcpt-discount-row");
-        if (bill.discount > 0) {
-            discRow.style.display = "flex";
-            document.getElementById("rcpt-discount").textContent = `-${formatMoney(bill.discount)}`;
-        } else {
-            discRow.style.display = "none";
-        }
-
-        document.getElementById("rcpt-total").textContent = formatMoney(bill.total_amount);
-
-        const tenderRow = document.getElementById("rcpt-tender-row");
-        const changeRow = document.getElementById("rcpt-change-row");
-
-        if (bill.payment_mode === "CASH" && bill.received_amount) {
-            tenderRow.style.display = "flex";
-            changeRow.style.display = "flex";
-            document.getElementById("rcpt-tendered").textContent = formatMoney(bill.received_amount);
-            document.getElementById("rcpt-change").textContent = formatMoney(bill.change_amount || 0);
-        } else {
-            tenderRow.style.display = "none";
-            changeRow.style.display = "none";
-        }
-
-        document.getElementById("rcpt-barcode-text").textContent = bill.bill_number;
-    }
-
-    function openReceiptModal() {
         receiptModal.classList.add("active");
     }
 
-    function closeReceiptModal() {
-        receiptModal.classList.remove("active");
-    }
-
-    btnCloseReceipt.addEventListener("click", closeReceiptModal);
-    btnDismissReceipt.addEventListener("click", closeReceiptModal);
-    btnPrintReceipt.addEventListener("click", () => {
-        window.print();
-    });
-
-    if (btnBtDirectPrint) {
-        btnBtDirectPrint.addEventListener("click", async () => {
-            if (!currentReceiptBill) {
-                showToast("No active receipt data found.", "error");
-                return;
-            }
-            if (!window.MitrayaBluetoothPrinter) {
-                showToast("Bluetooth module not loaded.", "error");
-                return;
-            }
-            if (!window.MitrayaBluetoothPrinter.isConnected()) {
-                showToast("Connecting to Bluetooth Printer...", "info");
-                try {
-                    await window.MitrayaBluetoothPrinter.connect();
-                } catch (e) {
-                    if (e.name !== "NotFoundError") {
-                        showToast("Could not connect to Bluetooth Printer.", "error");
-                    }
-                    return;
-                }
-            }
-            try {
-                btnBtDirectPrint.disabled = true;
-                btnBtDirectPrint.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Printing...';
-                await window.MitrayaBluetoothPrinter.printReceipt(currentReceiptBill);
-                showToast("Printed via Bluetooth Thermal Printer!", "success");
-            } catch (err) {
-                showToast("Error printing to Bluetooth printer: " + err.message, "error");
-            } finally {
-                btnBtDirectPrint.disabled = false;
-                btnBtDirectPrint.innerHTML = '<i class="fa-brands fa-bluetooth"></i> Print (BT)';
-            }
-        });
-    }
-
-    // Recent Bills Drawer & Reprint Logic
-    async function loadRecentBills() {
-        try {
-            const res = await fetch("/api/pos/bills/recent?limit=30");
-            const data = await res.json();
-
-            if (res.ok && data.success) {
-                recentBillsTbody.innerHTML = "";
-                if (!data.bills || data.bills.length === 0) {
-                    recentBillsTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:30px;">No POS bills created today yet.</td></tr>`;
-                    return;
-                }
-
-                data.bills.forEach(b => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td><strong>${b.bill_number}</strong></td>
-                        <td>${b.created_at ? b.created_at.split(" ")[1] + " " + (b.created_at.split(" ")[2] || "") : "-"}</td>
-                        <td>${b.items_count} items</td>
-                        <td><span class="badge-tag ${b.payment_mode.toLowerCase()}">${b.payment_mode}</span></td>
-                        <td><strong style="color:var(--accent-emerald); font-family:'JetBrains Mono'">${formatMoney(b.total_amount)}</strong></td>
-                        <td>
-                            <button type="button" class="nav-link-btn btn-reprint" data-bill-id="${b.id}" style="padding: 4px 10px; font-size: 11px;">
-                                <i class="fa-solid fa-print"></i> Reprint
-                            </button>
-                        </td>
-                    `;
-                    tr.querySelector(".btn-reprint").addEventListener("click", async () => {
-                        await reprintBill(b.id);
-                    });
-                    recentBillsTbody.appendChild(tr);
-                });
-            }
-        } catch (err) {
-            console.error("Error fetching recent bills:", err);
-            showToast("Failed to fetch recent bills", "error");
-        }
-    }
-
-    async function reprintBill(billId) {
-        try {
-            const res = await fetch(`/api/pos/bills/${billId}`);
-            const data = await res.json();
-            if (res.ok && data.success) {
-                currentReceiptBill = data.bill;
-                renderThermalReceipt(data.bill);
-                closeRecentBillsModal();
-                openReceiptModal();
-            } else {
-                showToast("Failed to load bill details", "error");
-            }
-        } catch (err) {
-            showToast("Network error reprinting bill", "error");
-        }
-    }
-
-    function openRecentBillsModal() {
-        loadRecentBills();
+    // ─── RECENT BILLS DRAWER ──────────────────────────────────────────────────
+    async function openRecentBillsModal() {
+        if (!recentBillsModal) return;
         recentBillsModal.classList.add("active");
-    }
-
-    function closeRecentBillsModal() {
-        recentBillsModal.classList.remove("active");
-    }
-
-    btnOpenRecent.addEventListener("click", openRecentBillsModal);
-    btnCloseRecent.addEventListener("click", closeRecentBillsModal);
-    btnCloseRecentFooter.addEventListener("click", closeRecentBillsModal);
-
-    // Bluetooth Printer Manager Setup
-    function initBluetoothPrinterUI() {
-        if (!window.MitrayaBluetoothPrinter) return;
-
-        const bt = window.MitrayaBluetoothPrinter;
-
-        function updateBTUI(info) {
-            if (info.connected) {
-                if (btnBtPrinter) {
-                    btnBtPrinter.className = "bt-status-btn connected";
-                    if (btBtnLabel) btBtnLabel.textContent = `BT: ${info.deviceName || "Connected"}`;
-                }
-                if (btModalStatusDot) {
-                    btModalStatusDot.className = "bt-status-dot connected";
-                }
-                if (btModalStatusText) {
-                    btModalStatusText.textContent = "Connected & Ready";
-                }
-                if (btModalDeviceName) {
-                    btModalDeviceName.textContent = info.deviceName || "Thermal Printer";
-                }
-                if (btnBtConnect) btnBtConnect.style.display = "none";
-                if (btnBtDisconnect) btnBtDisconnect.style.display = "inline-flex";
-            } else if (info.status === "connecting") {
-                if (btnBtPrinter) {
-                    btnBtPrinter.className = "bt-status-btn connecting";
-                    if (btBtnLabel) btBtnLabel.textContent = "BT Connecting...";
-                }
-                if (btModalStatusDot) btModalStatusDot.className = "bt-status-dot connecting";
-                if (btModalStatusText) btModalStatusText.textContent = "Pairing / Connecting...";
-            } else {
-                if (btnBtPrinter) {
-                    btnBtPrinter.className = "bt-status-btn";
-                    if (btBtnLabel) btBtnLabel.textContent = "BT Printer";
-                }
-                if (btModalStatusDot) btModalStatusDot.className = "bt-status-dot disconnected";
-                if (btModalStatusText) btModalStatusText.textContent = "Disconnected";
-                if (btModalDeviceName) btModalDeviceName.textContent = "No Printer Connected";
-                if (btnBtConnect) btnBtConnect.style.display = "inline-flex";
-                if (btnBtDisconnect) btnBtDisconnect.style.display = "none";
-            }
+        if (recentBillsList) {
+            recentBillsList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading recent bills...</div>`;
         }
 
-        bt.onStatusChange(updateBTUI);
-
-        // Initial setup
-        if (btAutoprintToggle) {
-            btAutoprintToggle.checked = bt.isAutoPrintEnabled();
-            btAutoprintToggle.addEventListener("change", () => {
-                bt.setAutoPrintEnabled(btAutoprintToggle.checked);
-                showToast(`Bluetooth Auto-print ${btAutoprintToggle.checked ? "Enabled" : "Disabled"}`);
-            });
-        }
-
-        if (btPaperWidthSelect) {
-            btPaperWidthSelect.value = bt.paperWidth.toString();
-            btPaperWidthSelect.addEventListener("change", () => {
-                bt.setPaperWidth(parseInt(btPaperWidthSelect.value, 10));
-                showToast(`Paper width set to ${btPaperWidthSelect.value}mm`);
-            });
-        }
-
-        if (btnBtPrinter && btPrinterModal) {
-            btnBtPrinter.addEventListener("click", () => btPrinterModal.classList.add("active"));
-        }
-        if (btnCloseBtModal && btPrinterModal) {
-            btnCloseBtModal.addEventListener("click", () => btPrinterModal.classList.remove("active"));
-        }
-        if (btnDismissBtModal && btPrinterModal) {
-            btnDismissBtModal.addEventListener("click", () => btPrinterModal.classList.remove("active"));
-        }
-
-        if (btnBtConnect) {
-            btnBtConnect.addEventListener("click", async () => {
-                try {
-                    await bt.connect();
-                    showToast(`Connected to ${bt.getDeviceName() || "Bluetooth Printer"}!`, "success");
-                } catch (err) {
-                    if (err.name !== "NotFoundError") {
-                        showToast(err.message || "Failed to connect Bluetooth printer", "error");
-                    }
-                }
-            });
-        }
-
-        if (btnBtDisconnect) {
-            btnBtDisconnect.addEventListener("click", async () => {
-                await bt.disconnect();
-                showToast("Bluetooth printer disconnected.");
-            });
-        }
-
-        if (btnBtTestPrint) {
-            btnBtTestPrint.addEventListener("click", async () => {
-                if (!bt.isConnected()) {
-                    showToast("Please connect to a Bluetooth printer first.", "error");
-                    return;
-                }
-                try {
-                    btnBtTestPrint.disabled = true;
-                    btnBtTestPrint.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Printing Test...';
-                    await bt.printTestReceipt();
-                    showToast("Test receipt sent to printer!", "success");
-                } catch (e) {
-                    showToast("Test print failed: " + e.message, "error");
-                } finally {
-                    btnBtTestPrint.disabled = false;
-                    btnBtTestPrint.innerHTML = '<i class="fa-solid fa-receipt"></i> Test Print';
-                }
-            });
-        }
-    }
-
-    // Shortcuts Modal
-    if (btnOpenShortcuts && shortcutsModal) {
-        btnOpenShortcuts.addEventListener("click", () => shortcutsModal.classList.add("active"));
-        btnCloseShortcuts.addEventListener("click", () => shortcutsModal.classList.remove("active"));
-        btnDismissShortcuts.addEventListener("click", () => shortcutsModal.classList.remove("active"));
-    }
-
-    // Logout
-    btnLogout.addEventListener("click", async () => {
         try {
-            await fetch("/api/logout", { method: "POST" });
-            window.location.href = "/login";
-        } catch (e) {
-            window.location.href = "/login";
-        }
-    });
+            const res = await fetch("/api/pos/bills/recent");
+            const data = await res.json();
+            if (data.success && data.bills && data.bills.length > 0) {
+                recentBillsList.innerHTML = "";
+                data.bills.forEach(bill => {
+                    const item = document.createElement("div");
+                    item.className = "cart-item-row";
+                    item.style.padding = "12px";
 
-    // Comprehensive Keyboard Shortcuts (Laptop / Desktop POS)
-    document.addEventListener("keydown", (e) => {
-        // F2 or '/' to focus search
-        if (e.key === "F2" || (e.key === "/" && document.activeElement !== searchInput && document.activeElement !== cashReceivedInput && document.activeElement !== cartDiscountInput)) {
-            e.preventDefault();
-            searchInput.focus();
-            searchInput.select();
-            return;
-        }
+                    item.innerHTML = `
+                        <div class="cart-item-info">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <strong style="color:#ffffff; font-family:var(--font-mono);">${bill.bill_number}</strong>
+                                <span class="table-status-pill ${bill.order_type === 'DINING' ? 'occupied' : 'vacant'}" style="font-size:10px;">${bill.order_type}</span>
+                            </div>
+                            <div class="cart-item-meta" style="margin-top:4px;">
+                                <span>${bill.created_at || ''}</span> • 
+                                <span>Mode: ${bill.payment_mode}</span> • 
+                                <span style="color:#38bdf8; font-weight:800;">₹${Number(bill.total_amount).toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-header btn-reprint" style="padding:6px 12px; font-size:11px;">
+                            <i class="fa-solid fa-print"></i> Reprint
+                        </button>
+                    `;
 
-        // F4 to focus Cash Tender
-        if (e.key === "F4") {
-            e.preventDefault();
-            setPaymentMode("CASH");
-            cashReceivedInput.focus();
-            cashReceivedInput.select();
-            return;
-        }
+                    item.querySelector(".btn-reprint").addEventListener("click", async () => {
+                        await reprintBill(bill);
+                    });
 
-        // F7 to focus Discount
-        if (e.key === "F7" || (e.altKey && (e.key === "d" || e.key === "D"))) {
-            e.preventDefault();
-            cartDiscountInput.focus();
-            cartDiscountInput.select();
-            return;
-        }
-
-        // F8 to cycle payment modes
-        if (e.key === "F8") {
-            e.preventDefault();
-            if (paymentMode === "CASH") setPaymentMode("UPI");
-            else if (paymentMode === "UPI") setPaymentMode("CARD");
-            else setPaymentMode("CASH");
-            showToast(`Mode: ${paymentMode}`, "success");
-            return;
-        }
-
-        // Alt + 1/2/3 for direct payment mode selection
-        if (e.altKey && e.key === "1") {
-            e.preventDefault();
-            setPaymentMode("CASH");
-            showToast("Mode: CASH", "success");
-            return;
-        }
-        if (e.altKey && e.key === "2") {
-            e.preventDefault();
-            setPaymentMode("UPI");
-            showToast("Mode: UPI", "success");
-            return;
-        }
-        if (e.altKey && e.key === "3") {
-            e.preventDefault();
-            setPaymentMode("CARD");
-            showToast("Mode: CARD", "success");
-            return;
-        }
-
-        // Ctrl + Enter or F9 to Charge & Print
-        if ((e.ctrlKey && e.key === "Enter") || e.key === "F9") {
-            e.preventDefault();
-            if (cart.length > 0) {
-                submitOrder();
+                    recentBillsList.appendChild(item);
+                });
             } else {
-                showToast("Cart is empty", "error");
+                recentBillsList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">No bills generated yet today.</div>`;
             }
-            return;
+        } catch (e) {
+            recentBillsList.innerHTML = `<div style="text-align:center; padding:20px; color:#f87171;">Failed to load recent bills.</div>`;
         }
-
-        // F3 or Alt + R for Recent Bills
-        if (e.key === "F3" || (e.altKey && (e.key === "r" || e.key === "R"))) {
-            e.preventDefault();
-            openRecentBillsModal();
-            return;
-        }
-
-        // F10 to Clear Cart
-        if (e.key === "F10") {
-            e.preventDefault();
-            clearCart();
-            return;
-        }
-
-        // Escape closes all modals and mobile drawer
-        if (e.key === "Escape") {
-            closeReceiptModal();
-            closeRecentBillsModal();
-            if (shortcutsModal) shortcutsModal.classList.remove("active");
-            if (cartPane) cartPane.classList.remove("mobile-open");
-        }
-    });
-
-    // Mobile Sidebar Drawer Controls (for Admin)
-    const adminSidebar = document.getElementById("admin-mobile-sidebar");
-    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
-    const btnSidebarToggle = document.getElementById("btn-sidebar-toggle");
-    const btnSidebarClose = document.getElementById("btn-sidebar-close");
-    const btnSidebarLogout = document.getElementById("btn-sidebar-logout");
-
-    function openSidebar() {
-        if (adminSidebar) adminSidebar.classList.add("open");
-        if (sidebarBackdrop) sidebarBackdrop.classList.add("active");
-        document.body.style.overflow = "hidden";
     }
 
-    function closeSidebar() {
-        if (adminSidebar) adminSidebar.classList.remove("open");
-        if (sidebarBackdrop) sidebarBackdrop.classList.remove("active");
-        document.body.style.overflow = "";
-    }
-
-    if (btnSidebarToggle) btnSidebarToggle.addEventListener("click", openSidebar);
-    if (btnSidebarClose) btnSidebarClose.addEventListener("click", closeSidebar);
-    if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
-
-    if (btnSidebarLogout) {
-        btnSidebarLogout.addEventListener("click", async () => {
-            try {
-                await fetch("/api/logout", { method: "POST" });
-                window.location.href = "/login";
-            } catch (e) {
-                window.location.href = "/login";
+    async function reprintBill(bill) {
+        showToast(`Reprinting Bill #${bill.bill_number}...`, "warning", 2000);
+        try {
+            // Check Bluetooth
+            if (printerState.type === "BLUETOOTH" && window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected()) {
+                await window.MitrayaBluetoothPrinter.printReceipt(bill);
+                showToast(`Reprinted #${bill.bill_number} on Bluetooth!`, "success");
+                return;
             }
-        });
+
+            // Otherwise call reprint API
+            const res = await fetch(`/api/printer/reprint/${bill.id}`, { method: "POST" });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`Bill #${bill.bill_number} dispatched to printer!`, "success");
+            } else {
+                // Fallback to receipt modal
+                openReceiptPreviewModal(bill);
+            }
+        } catch (e) {
+            openReceiptPreviewModal(bill);
+        }
     }
 
-    // Initialize
-    function init() {
-        loadCatalog();
-        updateCartUI();
-        initBluetoothPrinterUI();
-        loadTablesModalData();
+    // ─── BACKGROUND POLLING (TABLES & KITCHEN PROGRESSION) ─────────────────────
+    function startLivePolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(async () => {
+            if (currentMode === "DINING") {
+                await loadCounterTables();
+            }
+        }, 5000);
     }
 
+    // Run on DOM ready
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);
     } else {
@@ -1245,4 +1202,3 @@
     }
 
 })();
-

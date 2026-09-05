@@ -1,25 +1,27 @@
 /**
  * Hotel Mitraya - Live Order Display & Wired Thermal Print Station
  * ================================================================
- * 1. Real-time background listener polling for new orders from any device/login.
- * 2. Displays new orders prominently with a 20-second active countdown timer.
- * 3. Plays a pleasant audio chime upon new order arrival.
- * 4. Automatically triggers print to the connected wired thermal receipt printer.
- * 5. Syncs live status for all 12 restaurant dining tables.
+ * 1. Startup Diagnostics: Auto-identifies connected wired/system thermal printers.
+ * 2. Startup Confirmation: Prints a "HELLO - HOTEL MITRAYA PRINTER INITIALIZED" slip.
+ * 3. Real-time background listener polling for new orders from any device/waiter.
+ * 4. 2-Second Fast Preview: Displays new orders for strictly 2 seconds, then seamlessly moves to the order list.
+ * 5. Instant Wired Thermal Printing: Directly spools to the identified printer.
+ * 6. Syncs live status for all 12 restaurant dining tables.
  */
 
 (function () {
     "use strict";
 
     // Configuration & State
-    const POLL_INTERVAL_MS = 2500;
+    const POLL_INTERVAL_MS = 1500;
     let lastMaxId = 0;
     let isFirstPoll = true;
     let isPaused = false;
-    let activeTimerSeconds = 20;
+    let activeTimerSeconds = 2;
     let countdownInterval = null;
     let currentAlertBill = null;
     let recentBills = [];
+    let identifiedPrinterName = "Auto-Detecting...";
 
     // Settings
     let autoPrintEnabled = localStorage.getItem("mitraya_display_autoprint") !== "false";
@@ -45,7 +47,9 @@
     const btnAlertDismiss = document.getElementById("btn-alert-dismiss");
     const liveOrdersGrid = document.getElementById("live-orders-grid");
     const liveServerClock = document.getElementById("live-server-clock");
-    const hiddenReceiptContainer = document.getElementById("hidden-receipt-container");
+    const printerStatusPill = document.getElementById("printer-status-pill");
+    const printerStatusText = document.getElementById("printer-status-text");
+    const btnRedetectPrinter = document.getElementById("btn-redetect-printer");
 
     // Initialize Checkbox States
     if (toggleAutoPrint) {
@@ -93,7 +97,8 @@
             if (!ctx) return;
 
             const playTone = (freq, startTime, duration) => {
-                const osc = ctx.createOscillator();
+                const osc = ctx.createGain ? ctx.createOscillator() : null;
+                if (!osc) return;
                 const gain = ctx.createGain();
                 osc.type = "sine";
                 osc.frequency.setValueAtTime(freq, startTime);
@@ -109,14 +114,13 @@
             };
 
             const now = ctx.currentTime;
-            playTone(587.33, now, 0.25);        // D5
-            playTone(880.00, now + 0.15, 0.45); // A5
-            playTone(1174.66, now + 0.35, 0.6); // D6
+            playTone(587.33, now, 0.2);        // D5
+            playTone(880.00, now + 0.12, 0.35); // A5
+            playTone(1174.66, now + 0.28, 0.5); // D6
         } catch (e) {
-            console.warn("Audio chime play error:", e);
+            console.warn("Audio chime error:", e);
         }
     }
-
 
     // Currency Formatter
     function formatMoney(amount) {
@@ -126,11 +130,57 @@
         });
     }
 
-    // Print to Wired Thermal Printer
+    // --- 1. Startup Printer Diagnostics & "HELLO" Print Confirmation ---
+    async function runStartupPrinterDiagnostics() {
+        if (printerStatusText) {
+            printerStatusText.textContent = "Checking Wired Printers...";
+        }
+        if (printerStatusPill) {
+            printerStatusPill.className = "live-status-pill checking";
+        }
+
+        try {
+            const res = await fetch("/api/printer/startup-init", { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                identifiedPrinterName = data.identified_printer || "Thermal ESC/POS";
+                if (printerStatusText) {
+                    printerStatusText.textContent = `Wired Printer: ${identifiedPrinterName} (${data.paper_width}mm) — READY`;
+                }
+                if (printerStatusPill) {
+                    printerStatusPill.className = "live-status-pill ready";
+                }
+                console.log(`[PRINTER INIT] ${data.message}`);
+            } else {
+                if (printerStatusText) {
+                    printerStatusText.textContent = "Printer Check: " + (data.error || "Ready via Spooler");
+                }
+                if (printerStatusPill) {
+                    printerStatusPill.className = "live-status-pill warning";
+                }
+            }
+        } catch (err) {
+            console.warn("Printer startup init error:", err);
+            if (printerStatusText) {
+                printerStatusText.textContent = "Printer: Ready (Spooler Default)";
+            }
+            if (printerStatusPill) {
+                printerStatusPill.className = "live-status-pill ready";
+            }
+        }
+    }
+
+    if (btnRedetectPrinter) {
+        btnRedetectPrinter.addEventListener("click", () => {
+            runStartupPrinterDiagnostics();
+        });
+    }
+
+    // --- 2. Print to Wired Thermal Printer ---
     function printWiredReceipt(bill) {
         if (!bill) return;
 
-        // Build 80mm standard thermal printable HTML
         const itemsHtml = (bill.items || []).map(i => `
             <tr>
                 <td style="text-align: left; padding: 3px 0; font-size: 13px; font-weight: 700;">${i.item_name || i.name}</td>
@@ -232,7 +282,6 @@
             </html>
         `;
 
-        // Create clean invisible iframe to invoke print dialog cleanly
         let iframe = document.getElementById("wired-print-frame");
         if (iframe) iframe.remove();
 
@@ -256,20 +305,18 @@
                 iframe.contentWindow.focus();
                 iframe.contentWindow.print();
             } catch (e) {
-                console.warn("Direct iframe print error, fallback to window.print():", e);
-                window.print();
+                console.warn("Iframe print error:", e);
             }
-        }, 200);
+        }, 150);
     }
 
-    // Trigger 20-Second Order Pop-up Alert
+    // --- 3. 2-Second Fast Order Preview Modal ---
     function triggerOrderAlert(bill) {
         currentAlertBill = bill;
         isPaused = false;
-        pauseBtnText.textContent = "Pause Timer";
-        btnAlertPause.classList.remove("btn-active-paused");
+        if (pauseBtnText) pauseBtnText.textContent = "Pause (2s)";
+        if (btnAlertPause) btnAlertPause.classList.remove("btn-active-paused");
 
-        // Format Order Header
         const isDining = bill.order_type === "DINING" || (bill.table_number && bill.table_number > 0);
         if (isDining) {
             alertOrderTypeBadge.textContent = bill.status === "OPEN" ? "DINING ORDER / KOT" : "TABLE SETTLED";
@@ -284,8 +331,6 @@
         alertPaymentMode.textContent = `Mode: ${bill.payment_mode || 'CASH'}`;
         alertTotalAmount.textContent = formatMoney(bill.total_amount);
 
-
-        // Populate Items
         alertItemsContainer.innerHTML = "";
         (bill.items || []).forEach(item => {
             const row = document.createElement("div");
@@ -300,22 +345,17 @@
             alertItemsContainer.appendChild(row);
         });
 
-        // Show Modal
         liveAlertModal.classList.add("active");
-
-        // Audio Alert
         playOrderChime();
 
-        // Auto Print to Wired Thermal Printer
         if (autoPrintEnabled) {
             printWiredReceipt(bill);
         }
 
-        // Start 10-Second Countdown
-        startCountdown(10);
+        // Start 2-Second Fast Countdown
+        startCountdown(2);
     }
 
-    // 10-Second Countdown Timer Controller
     function startCountdown(seconds) {
         if (countdownInterval) clearInterval(countdownInterval);
 
@@ -335,9 +375,11 @@
     }
 
     function updateCountdownUI(secs) {
-        alertCountdownText.textContent = `${secs}s`;
-        const pct = Math.max(0, Math.min(100, (secs / 10) * 100));
-        alertProgressBar.style.width = `${pct}%`;
+        if (alertCountdownText) alertCountdownText.textContent = `${secs}s`;
+        if (alertProgressBar) {
+            const pct = Math.max(0, Math.min(100, (secs / 2) * 100));
+            alertProgressBar.style.width = `${pct}%`;
+        }
     }
 
     function dismissAlert() {
@@ -346,30 +388,34 @@
         currentAlertBill = null;
     }
 
-    // Alert Action Buttons
-    btnAlertDismiss.addEventListener("click", dismissAlert);
+    if (btnAlertDismiss) btnAlertDismiss.addEventListener("click", dismissAlert);
 
-    btnAlertPrint.addEventListener("click", () => {
-        if (currentAlertBill) {
-            printWiredReceipt(currentAlertBill);
-        }
-    });
+    if (btnAlertPrint) {
+        btnAlertPrint.addEventListener("click", () => {
+            if (currentAlertBill) {
+                printWiredReceipt(currentAlertBill);
+            }
+        });
+    }
 
-    btnAlertPause.addEventListener("click", () => {
-        isPaused = !isPaused;
-        if (isPaused) {
-            pauseBtnText.textContent = "Resume Timer";
-            btnAlertPause.style.background = "#2563eb";
-            btnAlertPause.style.color = "#fff";
-        } else {
-            pauseBtnText.textContent = "Pause Timer";
-            btnAlertPause.style.background = "#1e293b";
-            btnAlertPause.style.color = "#cbd5e1";
-        }
-    });
+    if (btnAlertPause) {
+        btnAlertPause.addEventListener("click", () => {
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseBtnText.textContent = "Resume (2s)";
+                btnAlertPause.style.background = "#2563eb";
+                btnAlertPause.style.color = "#fff";
+            } else {
+                pauseBtnText.textContent = "Pause (2s)";
+                btnAlertPause.style.background = "#1e293b";
+                btnAlertPause.style.color = "#cbd5e1";
+            }
+        });
+    }
 
-    // Render 12 Tables Status Radar
+    // --- 4. Render 12 Tables Radar ---
     function renderTablesRadar(tablesData) {
+        if (!tablesRadarGrid) return;
         tablesRadarGrid.innerHTML = "";
         let occupied = 0;
 
@@ -381,29 +427,32 @@
             card.className = `table-radar-card ${isOcc ? "occupied" : "vacant"}`;
             card.innerHTML = `
                 <div class="table-radar-num">T${t.table_number}</div>
-                <div class="table-radar-status">${isOcc ? `₹${t.total_amount.toFixed(0)}` : "Free"}</div>
+                <div class="table-radar-status">${isOcc ? `₹${(t.total_amount || 0).toFixed(0)}` : "Free"}</div>
             `;
             tablesRadarGrid.appendChild(card);
         });
 
-        activeTablesSummary.textContent = `${occupied} of 12 Tables Occupied`;
+        if (activeTablesSummary) {
+            activeTablesSummary.textContent = `${occupied} of 12 Tables Occupied`;
+        }
     }
 
-    // Render Live Orders Grid (Strictly 5 Recent Orders)
+    // --- 5. Render Live Orders Feed (Recent Orders List) ---
     function renderLiveOrdersFeed(bills) {
-        const top5Bills = (bills || []).slice(0, 5);
+        if (!liveOrdersGrid) return;
+        const topBills = (bills || []).slice(0, 10);
 
-        if (top5Bills.length === 0) {
+        if (topBills.length === 0) {
             liveOrdersGrid.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 60px 20px;">
+                <div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 50px 20px;">
                     <i class="fa-solid fa-mug-saucer fa-2x" style="opacity: 0.4;"></i>
-                    <p style="margin-top: 12px;">No orders placed yet today.</p>
+                    <p style="margin-top: 12px; font-weight: 600;">No active orders yet. Orders will appear here as soon as they are placed.</p>
                 </div>`;
             return;
         }
 
         liveOrdersGrid.innerHTML = "";
-        top5Bills.forEach(b => {
+        topBills.forEach(b => {
             const isDining = b.order_type === "DINING" || (b.table_number && b.table_number > 0);
             const card = document.createElement("div");
             card.className = `order-card ${isDining ? "dining" : "walk-in"}`;
@@ -439,18 +488,16 @@
         });
     }
 
-    // Polling Loop
+    // --- 6. Polling Loop ---
     async function pollLiveOrders() {
         try {
-            // 1. Fetch live tables state
-            const tablesRes = await fetch("/api/pos/tables");
+            const tablesRes = await fetch("/api/pos/tables", { credentials: "same-origin" });
             const tablesData = await tablesRes.json();
             if (tablesRes.ok && tablesData.success) {
                 renderTablesRadar(tablesData.tables);
             }
 
-            // 2. Fetch live orders stream
-            const ordersRes = await fetch(`/api/display/live-orders?since_id=${isFirstPoll ? 0 : lastMaxId}&limit=5`);
+            const ordersRes = await fetch(`/api/display/live-orders?since_id=${isFirstPoll ? 0 : lastMaxId}&limit=10`, { credentials: "same-origin" });
             const ordersData = await ordersRes.json();
 
             if (ordersRes.ok && ordersData.success) {
@@ -461,23 +508,21 @@
                 if (isFirstPoll) {
                     isFirstPoll = false;
                     lastMaxId = ordersData.max_id || 0;
-                    recentBills = (ordersData.bills || []).slice(0, 5);
+                    recentBills = (ordersData.bills || []).slice(0, 10);
                     renderLiveOrdersFeed(recentBills);
                 } else {
                     lastMaxId = ordersData.max_id || lastMaxId;
                     if (ordersData.bills) {
-                        recentBills = ordersData.bills.slice(0, 5);
+                        recentBills = ordersData.bills.slice(0, 10);
                         renderLiveOrdersFeed(recentBills);
                     }
 
                     const newBills = ordersData.new_bills || [];
                     if (newBills.length > 0) {
-                        // Trigger 10-second active screen popup & auto-print for newly completed checkout bill
                         triggerOrderAlert(newBills[newBills.length - 1]);
                     }
                 }
             }
-
         } catch (err) {
             console.error("Live poll error:", err);
             if (liveServerClock) liveServerClock.textContent = "Connecting...";
@@ -488,6 +533,7 @@
 
     // Startup
     function init() {
+        runStartupPrinterDiagnostics();
         pollLiveOrders();
     }
 
@@ -498,4 +544,3 @@
     }
 
 })();
-

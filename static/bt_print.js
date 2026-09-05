@@ -1,14 +1,17 @@
 /**
- * Hotel Mitraya - Web Bluetooth Thermal Receipt Printer Driver
- * =============================================================
- * Provides direct ESC/POS thermal printing over Web Bluetooth (BLE).
- * Supports standard 58mm and 80mm POS Bluetooth thermal receipt printers.
+ * Hotel Mitraya - Unified Hardware & Bluetooth Thermal Printer Manager
+ * ====================================================================
+ * Coordinates:
+ * 1. Web Bluetooth (BLE) 58mm & 80mm ESC/POS Thermal Printing
+ * 2. Welcome Slip Generation & Startup Diagnostics
+ * 3. Server-side Thermal Spooler integration (Windows Driver & Network ESC/POS)
+ * 4. Automatic connection status monitoring & event notifications
  */
 
 (function (window) {
     "use strict";
 
-    // Known Bluetooth Printer Service UUIDs (Standard ESC/POS BLE Profiles)
+    // Known Standard Bluetooth ESC/POS Service UUIDs
     const PRINTER_SERVICES = [
         "000018f0-0000-1000-8000-00805f9b34fb",
         "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
@@ -40,7 +43,7 @@
         }
 
         getDeviceName() {
-            return this.device ? (this.device.name || "Bluetooth Printer") : null;
+            return this.device ? (this.device.name || "Bluetooth Thermal Printer") : null;
         }
 
         isAutoPrintEnabled() {
@@ -57,6 +60,10 @@
             localStorage.setItem("mitraya_bt_paper_width", this.paperWidth.toString());
         }
 
+        getPaperWidth() {
+            return this.paperWidth;
+        }
+
         onStatusChange(callback) {
             if (typeof callback === "function") {
                 this.statusListeners.push(callback);
@@ -68,6 +75,7 @@
                 status, // 'connected', 'disconnected', 'connecting', 'error'
                 connected: this.isConnected(),
                 deviceName: this.getDeviceName(),
+                paperWidth: this.paperWidth,
                 ...details
             };
             this.statusListeners.forEach(cb => {
@@ -81,7 +89,7 @@
 
         async connect() {
             if (!this.isSupported()) {
-                throw new Error("Web Bluetooth is not supported in this browser. Please use Chrome, Edge, or Bluefy.");
+                throw new Error("Web Bluetooth is not supported on this browser. Please use Chrome or Edge on Windows/Android.");
             }
 
             if (this.isConnected()) {
@@ -92,7 +100,6 @@
             this._notifyStatus("connecting");
 
             try {
-                // Request Bluetooth Device with printer service filters
                 this.device = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
                     optionalServices: PRINTER_SERVICES
@@ -122,12 +129,20 @@
                 }
 
                 if (!foundChar) {
-                    throw new Error("No writable printing characteristic found on selected Bluetooth device.");
+                    throw new Error("No writable printing characteristic found on selected Bluetooth printer.");
                 }
 
                 this.characteristic = foundChar;
                 this.isConnecting = false;
                 this._notifyStatus("connected");
+
+                // Print Welcome slip on successful connection
+                try {
+                    await this.printWelcomeSlip();
+                } catch (pe) {
+                    console.warn("Welcome print failed:", pe);
+                }
+
                 return true;
             } catch (err) {
                 this.isConnecting = false;
@@ -152,7 +167,7 @@
         }
 
         /**
-         * Write raw binary buffer to Bluetooth characteristic in chunks (512 bytes).
+         * Write raw binary buffer to Bluetooth characteristic in chunks.
          */
         async writeBytes(bytes) {
             if (!this.isConnected()) {
@@ -168,13 +183,78 @@
                 } else {
                     await this.characteristic.writeValue(buffer);
                 }
-                // Small pause between chunks to avoid buffer overflow on receipt printer
                 await new Promise(resolve => setTimeout(resolve, 20));
             }
         }
 
+        _padBetween(left, right, maxLen) {
+            const spaces = Math.max(1, maxLen - left.length - right.length);
+            return left + " ".repeat(spaces) + right;
+        }
+
         /**
-         * Encodes receipt data into ESC/POS binary bytecode.
+         * Generates ESC/POS bytes for a Welcome Slip
+         */
+        encodeWelcomeSlip() {
+            const encoder = new TextEncoder();
+            const cols = this.paperWidth === 58 ? 32 : 42;
+            const bytes = [];
+
+            const append = (...arr) => bytes.push(...arr);
+            const appendLine = (text = "") => bytes.push(...encoder.encode(text + "\n"));
+
+            // ESC @ : Initialize
+            append(0x1B, 0x40);
+            // ESC a 1 : Center
+            append(0x1B, 0x61, 0x01);
+
+            // Double size bold header
+            append(0x1D, 0x21, 0x11);
+            append(0x1B, 0x45, 0x01);
+            appendLine("HOTEL MITRAYA");
+
+            // Normal text
+            append(0x1D, 0x21, 0x00);
+            append(0x1B, 0x45, 0x00);
+            appendLine("Pure Veg Restaurant & Caterers");
+            appendLine("Akurdi, Pune - 411035");
+
+            const divider = "=".repeat(cols);
+            appendLine(divider);
+
+            // Double height title
+            append(0x1D, 0x21, 0x01);
+            append(0x1B, 0x45, 0x01);
+            appendLine("PRINTER CONNECTED!");
+            append(0x1D, 0x21, 0x00);
+            append(0x1B, 0x45, 0x00);
+
+            appendLine(divider);
+
+            // Left align details
+            append(0x1B, 0x61, 0x00);
+            const nowStr = new Date().toLocaleString("en-IN");
+            appendLine(`Date/Time: ${nowStr}`);
+            appendLine(`Device   : ${this.getDeviceName() || "Bluetooth Thermal"}`);
+            appendLine(`Width    : ${this.paperWidth}mm (${cols} cols)`);
+            appendLine(`Status   : READY FOR BILLING`);
+
+            appendLine("-".repeat(cols));
+
+            // Center align footer
+            append(0x1B, 0x61, 0x01);
+            appendLine("WELCOME & HAVE A GREAT SHIFT!");
+            appendLine("Fast Billing & Printing Active");
+
+            // Feed & cut
+            appendLine("\n\n\n");
+            append(0x1D, 0x56, 0x42, 0x00);
+
+            return bytes;
+        }
+
+        /**
+         * Encodes a customer bill into ESC/POS binary bytecode.
          */
         encodeReceipt(bill) {
             const encoder = new TextEncoder();
@@ -184,19 +264,17 @@
             const append = (...arr) => bytes.push(...arr);
             const appendLine = (text = "") => bytes.push(...encoder.encode(text + "\n"));
 
-            // ESC @ : Initialize printer
+            // ESC @ : Initialize
             append(0x1B, 0x40);
-
-            // ESC a 1 : Center alignment
+            // ESC a 1 : Center
             append(0x1B, 0x61, 0x01);
 
-            // GS ! 0x11 : Double width & double height for Main Title
+            // Brand Title
             append(0x1D, 0x21, 0x11);
-            // ESC E 1 : Bold ON
             append(0x1B, 0x45, 0x01);
             appendLine("HOTEL MITRAYA");
 
-            // Normal font
+            // Normal text
             append(0x1D, 0x21, 0x00);
             append(0x1B, 0x45, 0x00);
             appendLine("Pure Veg Restaurant & Caterers");
@@ -205,24 +283,27 @@
             appendLine("Ph: +91 9158691003");
             appendLine("FSSAI Lic: 21525037001433");
 
-            // ESC a 0 : Left alignment
+            // Left align
             append(0x1B, 0x61, 0x00);
-
             const divider = "-".repeat(cols);
             appendLine(divider);
 
-            // Meta Info: Bill No, Date, Cashier, Mode
+            // Bill metadata
             const billNo = `Bill: ${bill.bill_number || "POS-000000"}`;
             const dateStr = bill.created_at || new Date().toLocaleString("en-IN");
             appendLine(this._padBetween(billNo, dateStr, cols));
 
-            const cashier = `Staff: ${bill.cashier_role || "Staff"}`;
+            const tableLabel = bill.table_number ? `Table: ${bill.table_number}` : (bill.order_type === "DINING" ? "Dining" : "Walk-in");
             const mode = `Mode: ${bill.payment_mode || "CASH"}`;
-            appendLine(this._padBetween(cashier, mode, cols));
+            appendLine(this._padBetween(tableLabel, mode, cols));
+
+            if (bill.customer_name) {
+                appendLine(`Guest: ${bill.customer_name}`);
+            }
 
             appendLine(divider);
 
-            // Table Header: Item | Qty | Rate | Amt
+            // Items table header
             if (cols === 32) {
                 appendLine("Item            Qty Rate   Amt");
             } else {
@@ -230,7 +311,7 @@
             }
             appendLine(divider);
 
-            // Item Rows
+            // Items rows
             const items = bill.items || [];
             items.forEach(i => {
                 const name = i.item_name || i.name || "Item";
@@ -239,7 +320,6 @@
                 const amt = Number(i.total_price || (i.quantity * i.unit_price) || 0).toFixed(2);
 
                 if (cols === 32) {
-                    // 32-col layout (14 item, 4 qty, 5 rate, 7 amt)
                     const itemPart = name.padEnd(14).substring(0, 14);
                     const qtyPart = qty.padStart(3);
                     const ratePart = rate.padStart(5);
@@ -249,7 +329,6 @@
                         appendLine(`  ${name.substring(14)}`);
                     }
                 } else {
-                    // 42-col layout (20 item, 5 qty, 7 rate, 8 amt)
                     const itemPart = name.padEnd(20).substring(0, 20);
                     const qtyPart = qty.padStart(5);
                     const ratePart = rate.padStart(7);
@@ -267,7 +346,7 @@
             const subtotalStr = `Rs.${Number(bill.subtotal || 0).toFixed(2)}`;
             appendLine(this._padBetween("Sub Total:", subtotalStr, cols));
 
-            // Discount if applicable
+            // Discount
             if (bill.discount && Number(bill.discount) > 0) {
                 const discStr = `-Rs.${Number(bill.discount).toFixed(2)}`;
                 appendLine(this._padBetween("Discount:", discStr, cols));
@@ -275,7 +354,7 @@
 
             appendLine(divider);
 
-            // Grand Total (Bold & slightly enlarged)
+            // Grand Total
             append(0x1B, 0x45, 0x01); // Bold ON
             append(0x1D, 0x21, 0x01); // Double height
             const totalStr = `Rs.${Number(bill.total_amount || 0).toFixed(2)}`;
@@ -285,7 +364,7 @@
 
             appendLine(divider);
 
-            // Cash Tendered & Change (if Cash)
+            // Cash Tendered & Change
             if (bill.payment_mode === "CASH" && bill.received_amount) {
                 const recStr = `Rs.${Number(bill.received_amount).toFixed(2)}`;
                 appendLine(this._padBetween("Cash Tendered:", recStr, cols));
@@ -296,23 +375,17 @@
                 appendLine(divider);
             }
 
-            // Center Align for Footer
+            // Footer
             append(0x1B, 0x61, 0x01);
             appendLine(`* ${bill.bill_number || "POS-RECEIPT"} *`);
             appendLine("Thank You! Visit Again.");
             appendLine("Have a Delicious Day!");
 
-            // Feed 4 lines & cut
+            // Feed & cut
             appendLine("\n\n\n");
-            // GS V 66 0 : Cut paper
             append(0x1D, 0x56, 0x42, 0x00);
 
             return bytes;
-        }
-
-        _padBetween(left, right, maxLen) {
-            const spaces = Math.max(1, maxLen - left.length - right.length);
-            return left + " ".repeat(spaces) + right;
         }
 
         async printReceipt(bill) {
@@ -320,21 +393,26 @@
             await this.writeBytes(bytes);
         }
 
+        async printWelcomeSlip() {
+            const bytes = this.encodeWelcomeSlip();
+            await this.writeBytes(bytes);
+        }
+
         async printTestReceipt() {
             const testBill = {
                 bill_number: "TEST-0001",
                 created_at: new Date().toLocaleString("en-IN"),
-                cashier_role: "Admin/Tester",
+                cashier_role: "Staff",
                 payment_mode: "CASH",
                 items: [
-                    { item_name: "Special Chai", quantity: 2, unit_price: 20, total_price: 40 },
-                    { item_name: "Masala Dosa", quantity: 1, unit_price: 90, total_price: 90 },
-                    { item_name: "Filter Coffee", quantity: 1, unit_price: 30, total_price: 30 }
+                    { item_name: "Special Masala Chai", quantity: 2, unit_price: 20, total_price: 40 },
+                    { item_name: "Dahi Dhapata Plate", quantity: 1, unit_price: 130, total_price: 130 },
+                    { item_name: "Special Veg Thali", quantity: 1, unit_price: 160, total_price: 160 }
                 ],
-                subtotal: 160.00,
-                discount: 0.00,
-                total_amount: 160.00,
-                received_amount: 200.00
+                subtotal: 330.00,
+                discount: 10.00,
+                total_amount: 320.00,
+                received_amount: 500.00
             };
             await this.printReceipt(testBill);
         }

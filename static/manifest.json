@@ -1,13 +1,13 @@
 {
-  "name": "Hotel Mitraya POS & Billing",
+  "name": "Hotel Mitraya — POS & Billing",
   "short_name": "Mitraya POS",
-  "description": "Hotel Mitraya Quick POS, Table Management and Smart Billing App for Waiters and Cashiers",
-  "start_url": "/pos",
+  "description": "Hotel Mitraya Restaurant POS, Dining Table Management, Bulk Billing and Kitchen Orders Mobile App",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#0a1017",
-  "theme_color": "#0a1017",
+  "orientation": "any",
+  "background_color": "#f0f4f9",
+  "theme_color": "#1e3a8a",
   "icons": [
     {
       "src": "/static/logo.png",
@@ -25,24 +25,31 @@
   "categories": ["business", "food", "productivity"],
   "shortcuts": [
     {
-      "name": "Quick POS",
-      "short_name": "POS",
-      "description": "Open Quick POS Billing screen",
+      "name": "Cashier POS Counter",
+      "short_name": "Cashier POS",
+      "description": "Open Cashier Billing and Table Settlement",
       "url": "/pos",
       "icons": [{ "src": "/static/logo.png", "sizes": "192x192" }]
     },
     {
-      "name": "Live Kitchen Display",
-      "short_name": "Display",
-      "description": "Open Live Orders & Print Display",
-      "url": "/display",
+      "name": "Waiter Mobile App",
+      "short_name": "Waiter App",
+      "description": "Take customer dining table orders on mobile",
+      "url": "/waiter",
       "icons": [{ "src": "/static/logo.png", "sizes": "192x192" }]
     },
     {
-      "name": "Admin Portal",
-      "short_name": "Admin",
-      "description": "Open Admin Dashboard & Reports",
+      "name": "Admin Dashboard",
+      "short_name": "Admin Panel",
+      "description": "Open Admin Dashboard and Sales Reports",
       "url": "/admin",
+      "icons": [{ "src": "/static/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bulk Institution Billing",
+      "short_name": "Bulk Billing",
+      "description": "Generate bulk institutional invoices",
+      "url": "/bulk",
       "icons": [{ "src": "/static/logo.png", "sizes": "192x192" }]
     }
   ]

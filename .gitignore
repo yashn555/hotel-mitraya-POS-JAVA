@@ -10,5 +10,7 @@ bills/*.pdf
 !bills/.gitkeep
 *.db
 mitraya_pos.db
+*.log
+.env
 .DS_Store
 Thumbs.db

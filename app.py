@@ -1,15 +1,22 @@
 """
-Hotel Mitraya - Bill Generation Web Application Server
-======================================================
-Provides responsive mobile & desktop web UI, REST APIs for PDF bill creation,
-and dedicated management for the `/bills` folder.
+Hotel Mitraya - Production Restaurant POS, Ordering & Billing Web Application Server
+=====================================================================================
+Central source of truth serving:
+- Admin Portal (/admin & /admin/*)
+- Counter Cashier POS (/pos & /display)
+- Floor Waiter Mobile App (/waiter)
+- 58mm & 80mm ESC/POS Thermal Printing Subsystem
+- Bulk / Institution Invoice Generator (/bulk & /api/bills/*)
 """
 
 import os
 import re
 import glob
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, abort, session, redirect, url_for
+from flask import (
+    Flask, render_template, request, jsonify, send_file,
+    send_from_directory, abort, session, redirect, url_for
+)
 from flask_cors import CORS
 from generate_bill_docx import generate_bill_pdf, sanitize_filename
 
@@ -18,9 +25,13 @@ from database.db import init_db
 from auth.routes import auth_bp
 from admin.routes import admin_bp
 from pos.routes import pos_bp
+from orders.routes import orders_bp
+from waiter.routes import waiter_bp
+from printer.routes import printer_bp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# In serverless environments like Vercel, use /tmp for writing files
+
+# Serverless environments fallback for writing files
 if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
     BILLS_DIR = os.path.join(tempfile.gettempdir(), "bills")
 else:
@@ -34,25 +45,36 @@ app.secret_key = os.environ.get("SECRET_KEY", "hotel-mitraya-secure-billing-key-
 app.permanent_session_lifetime = timedelta(days=30)
 CORS(app)
 
-# Initialize Relational Database & Seed Data for Quick POS & Users
+# Initialize Relational Database & Seed Data
 init_db()
 
-# Register Blueprints for Modular POS Architecture
+# Register Blueprints for Modular Production Architecture
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(pos_bp)
+app.register_blueprint(orders_bp)
+app.register_blueprint(waiter_bp)
+app.register_blueprint(printer_bp)
 
-# Hardcoded Access PIN (can also be overridden in Vercel Environment variables as APP_PIN)
+# Hardcoded Access PIN Fallback
 APP_PIN = str(os.environ.get("APP_PIN", "2005")).strip()
 
 
 @app.before_request
 def require_auth():
     # Public routes allowed without PIN
-    public_endpoints = {"login", "api_login", "health", "static", "auth.login_api"}
-    if request.endpoint in public_endpoints:
+    if request.path in ["/login", "/api/login", "/api/pos/login", "/api/auth/login", "/logout", "/api/logout", "/api/auth/logout", "/api/pos/logout", "/api/health", "/favicon.ico", "/kitchen", "/kds", "/display", "/bulk", "/api/orders/kitchen"]:
         return None
-    if request.path.startswith("/static/") or request.path == "/favicon.ico":
+    if request.path.startswith("/static/"):
+        return None
+
+    public_endpoints = {
+        "login", "api_login", "health", "static", "favicon",
+        "auth.login_api", "auth.current_user_api", "pos.login_api",
+        "orders.kitchen_view", "orders.kitchen_orders_api",
+        "display_redirect", "kds_redirect"
+    }
+    if request.endpoint in public_endpoints:
         return None
 
     # Check if user session is authenticated
@@ -65,12 +87,40 @@ def require_auth():
             }), 401
         return redirect(url_for("login"))
 
-    # Role-based restriction: Cashier cannot access Admin routes or bulk billing
     role = session.get("role", "admin")
-    if role == "cashier":
+
+    # 1. Waiter Role Route Restrictions
+    if role == "waiter":
+        # Waiter can access /waiter, /kitchen, /kds, /api/waiter/*, /api/orders*, /api/auth/*, /logout
+        if (
+            request.path.startswith("/admin") or
+            request.path.startswith("/api/admin") or
+            request.path.startswith("/pos") or
+            request.path.startswith("/api/pos") or
+            request.path.startswith("/display") or
+            request.path.startswith("/printer") or
+            request.path.startswith("/api/display") or
+            request.path == "/bulk" or
+            request.path.startswith("/api/bills")
+        ):
+            if request.path.startswith("/api/"):
+                return jsonify({
+                    "success": False,
+                    "error": "Access denied. Waiter account is not authorized for this function.",
+                    "forbidden": True
+                }), 403
+            return redirect(url_for("waiter.waiter_view"))
+
+    # 2. Cashier Role Route Restrictions
+    elif role == "cashier":
+        # Cashier cannot access Admin routes
         if request.path.startswith("/admin") or request.path.startswith("/api/admin"):
             if request.path.startswith("/api/"):
-                return jsonify({"success": False, "error": "Access denied. Admin privileges required.", "forbidden": True}), 403
+                return jsonify({
+                    "success": False,
+                    "error": "Access denied. Admin privileges required.",
+                    "forbidden": True
+                }), 403
             return redirect(url_for("pos.pos_view"))
 
 
@@ -78,9 +128,11 @@ def require_auth():
 def login():
     if session.get("authenticated"):
         role = session.get("role", "admin")
-        if role == "cashier":
+        if role == "waiter":
+            return redirect(url_for("waiter.waiter_view"))
+        elif role == "cashier":
             return redirect(url_for("pos.pos_view"))
-        return redirect(url_for("admin_bp.admin_dashboard_view"))
+        return redirect(url_for("admin.admin_dashboard_view"))
     return render_template("login.html")
 
 
@@ -89,21 +141,33 @@ def favicon():
     return send_from_directory("static", "logo.png", mimetype="image/png")
 
 
+@app.route("/display", methods=["GET"])
+def display_redirect():
+    """Old display route - now shows kitchen screen directly."""
+    return render_template("kitchen.html")
+
+
+@app.route("/kds", methods=["GET"])
+def kds_redirect():
+    """KDS alias - shows kitchen screen."""
+    return render_template("kitchen.html")
+
+
 @app.route("/bulk", methods=["GET"])
 def bulk_billing():
     """Bulk / Institution Billing Route (Existing Unchanged System)."""
     return render_template("index.html")
 
 
-
-
-@app.route("/logout", methods=["GET"])
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
 
 @app.route("/api/logout", methods=["POST", "GET"])
+@app.route("/api/auth/logout", methods=["POST", "GET"])
+@app.route("/api/pos/logout", methods=["POST", "GET"])
 def api_logout():
     session.clear()
     return jsonify({
@@ -145,13 +209,21 @@ def get_bill_metadata(filename: str):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    if session.get("authenticated"):
+        role = session.get("role", "admin")
+        if role == "waiter":
+            return redirect(url_for("waiter.waiter_view"))
+        elif role == "cashier":
+            return redirect(url_for("pos.pos_view"))
+        return redirect(url_for("admin.admin_dashboard_view"))
+    return render_template("login.html")
 
 
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "healthy",
+        "server_time": datetime.now().strftime("%d/%m/%Y %I:%M:%S %p"),
         "bills_count": len([f for f in os.listdir(BILLS_DIR) if f.lower().endswith(".pdf")]),
         "template_exists": os.path.exists(TEMPLATE_PATH)
     })
@@ -177,7 +249,6 @@ def api_generate_bill():
         if not items or len(items) == 0:
             return jsonify({"success": False, "error": "At least one item is required"}), 400
 
-        # Validate item entries
         sanitized_items = []
         for idx, itm in enumerate(items):
             iname = str(itm.get("name", "")).strip()
@@ -190,7 +261,6 @@ def api_generate_bill():
                 return jsonify({"success": False, "error": f"Invalid Qty or Rate for item '{iname}'"}), 400
             sanitized_items.append({"name": iname, "qty": iqty, "rate": irate})
 
-        # Set default dates if missing
         now = datetime.now()
         if not created_on:
             created_on = now.strftime("%d/%m/%Y %I:%M %p")
@@ -213,11 +283,9 @@ def api_generate_bill():
             "received_amount": received_amount
         }
 
-        # Generate the PDF bill into /bills
         result = generate_bill_pdf(payload, template_path=TEMPLATE_PATH, bills_dir=BILLS_DIR)
         meta = get_bill_metadata(result["filename"])
 
-        # Read and include base64 PDF for instant client download on serverless platforms like Vercel
         try:
             import base64
             with open(result["filepath"], "rb") as f:
@@ -258,7 +326,6 @@ def api_list_bills():
                 else:
                     bills.append(meta)
 
-        # Sort newest first
         bills.sort(key=lambda b: b["timestamp"], reverse=True)
         return jsonify({"success": True, "count": len(bills), "bills": bills})
     except Exception as e:
@@ -270,7 +337,6 @@ def api_download_bill(filename):
     safe_name = os.path.basename(filename)
     filepath = os.path.join(BILLS_DIR, safe_name)
     if not os.path.isfile(filepath):
-        # Ephemeral container fallback
         name_no_ext = os.path.splitext(safe_name)[0]
         parts = name_no_ext.rsplit("_", 1)
         if len(parts) == 2:
@@ -302,7 +368,6 @@ def api_preview_bill(filename):
     safe_name = os.path.basename(filename)
     filepath = os.path.join(BILLS_DIR, safe_name)
     if not os.path.isfile(filepath):
-        # Ephemeral container fallback
         name_no_ext = os.path.splitext(safe_name)[0]
         parts = name_no_ext.rsplit("_", 1)
         if len(parts) == 2:
@@ -343,7 +408,6 @@ def api_delete_bill(filename):
 
 @app.route("/api/next-bill-no", methods=["GET"])
 def api_next_bill_no():
-    """Look at existing bills and suggest the next numeric bill number."""
     try:
         files = [f for f in os.listdir(BILLS_DIR) if f.lower().endswith(".pdf")]
         max_no = 1000
@@ -360,7 +424,5 @@ def api_next_bill_no():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5055))
     host = os.environ.get("HOST", "0.0.0.0")
-    print(f"[*] Hotel Mitraya Bill Generator running at http://{host}:{port}")
+    print(f"[*] Hotel Mitraya Restaurant Server running at http://{host}:{port}")
     app.run(host=host, port=port, debug=False)
-
-

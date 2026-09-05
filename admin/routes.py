@@ -2,15 +2,16 @@
 Admin Management & Sales Analytics Controller
 ==============================================
 Provides dashboard views and APIs for Menu Management, POS Bill History,
-User/PIN Settings, and Sales Reports (Cash/UPI/Card & Best Sellers).
+User/PIN Settings, Sales Reports (Cash/UPI/Card & Best Sellers), Audit Logs,
+and Database Backup Export.
 """
 
 from datetime import datetime, date, time
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, Response
 from sqlalchemy import func, desc
-from database.db import get_db
-from database.models import Category, MenuItem, PosBill, PosBillItem, User
-from auth.utils import admin_required
+from database.db import get_db, record_audit_log
+from database.models import Category, MenuItem, PosBill, PosBillItem, User, Order, OrderItem, AuditLog, PrinterConfigModel
+from auth.utils import admin_required, get_current_user_context
 
 admin_bp = Blueprint("admin", __name__, template_folder="templates")
 
@@ -77,6 +78,7 @@ def save_category_api():
         name = str(data.get("name", "")).strip()
         display_order = int(data.get("display_order", 0))
         is_active = bool(data.get("is_active", True))
+        ctx = get_current_user_context()
 
         if not name:
             return jsonify({"success": False, "error": "Category name is required"}), 400
@@ -90,8 +92,16 @@ def save_category_api():
                 category.display_order = display_order
                 category.is_active = is_active
                 msg = f"Category '{name}' updated successfully!"
+
+                record_audit_log(
+                    db,
+                    action="UPDATE_CATEGORY",
+                    entity="CATEGORY",
+                    entity_id=str(category.id),
+                    details=f"Updated category: {name}",
+                    **ctx
+                )
             else:
-                # Check duplicate
                 existing = db.query(Category).filter(func.lower(Category.name) == name.lower()).first()
                 if existing:
                     return jsonify({"success": False, "error": f"Category '{name}' already exists"}), 400
@@ -102,7 +112,17 @@ def save_category_api():
                     is_active=is_active
                 )
                 db.add(category)
+                db.flush()
                 msg = f"Category '{name}' created successfully!"
+
+                record_audit_log(
+                    db,
+                    action="CREATE_CATEGORY",
+                    entity="CATEGORY",
+                    entity_id=str(category.id),
+                    details=f"Created category: {name}",
+                    **ctx
+                )
 
             db.flush()
             return jsonify({"success": True, "message": msg, "category": category.to_dict()})
@@ -115,12 +135,24 @@ def save_category_api():
 @admin_required
 def delete_category_api(cat_id):
     try:
+        ctx = get_current_user_context()
         with get_db() as db:
             category = db.query(Category).filter_by(id=cat_id).first()
             if not category:
                 return jsonify({"success": False, "error": "Category not found"}), 404
             
+            c_name = category.name
             db.delete(category)
+
+            record_audit_log(
+                db,
+                action="DELETE_CATEGORY",
+                entity="CATEGORY",
+                entity_id=str(cat_id),
+                details=f"Deleted category: {c_name}",
+                **ctx
+            )
+
             return jsonify({"success": True, "message": "Category deleted successfully!"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -161,6 +193,7 @@ def save_menu_item_api():
         code = str(data.get("code", "")).strip() or None
         is_available = bool(data.get("is_available", True))
         display_order = int(data.get("display_order", 0))
+        ctx = get_current_user_context()
 
         if not name:
             return jsonify({"success": False, "error": "Item name is required"}), 400
@@ -178,6 +211,8 @@ def save_menu_item_api():
                 item = db.query(MenuItem).filter_by(id=item_id).first()
                 if not item:
                     return jsonify({"success": False, "error": "Menu item not found"}), 404
+
+                old_price = item.price
                 item.name = name
                 item.price = price
                 item.category_id = category_id
@@ -185,6 +220,16 @@ def save_menu_item_api():
                 item.is_available = is_available
                 item.display_order = display_order
                 msg = f"Item '{name}' updated successfully!"
+
+                price_note = f" (Price updated from Rs.{old_price} to Rs.{price})" if old_price != price else ""
+                record_audit_log(
+                    db,
+                    action="UPDATE_MENU_ITEM",
+                    entity="MENU_ITEM",
+                    entity_id=str(item.id),
+                    details=f"Updated item '{name}'{price_note}",
+                    **ctx
+                )
             else:
                 item = MenuItem(
                     name=name,
@@ -195,7 +240,17 @@ def save_menu_item_api():
                     display_order=display_order
                 )
                 db.add(item)
+                db.flush()
                 msg = f"Item '{name}' added successfully!"
+
+                record_audit_log(
+                    db,
+                    action="CREATE_MENU_ITEM",
+                    entity="MENU_ITEM",
+                    entity_id=str(item.id),
+                    details=f"Created menu item '{name}' (Rs.{price})",
+                    **ctx
+                )
 
             db.flush()
             return jsonify({"success": True, "message": msg, "item": item.to_dict()})
@@ -208,6 +263,7 @@ def save_menu_item_api():
 @admin_required
 def toggle_item_availability_api(item_id):
     try:
+        ctx = get_current_user_context()
         with get_db() as db:
             item = db.query(MenuItem).filter_by(id=item_id).first()
             if not item:
@@ -215,6 +271,16 @@ def toggle_item_availability_api(item_id):
             item.is_available = not item.is_available
             db.flush()
             status_text = "Available" if item.is_available else "Disabled"
+
+            record_audit_log(
+                db,
+                action="TOGGLE_ITEM_AVAILABILITY",
+                entity="MENU_ITEM",
+                entity_id=str(item.id),
+                details=f"Set '{item.name}' availability to {status_text}",
+                **ctx
+            )
+
             return jsonify({
                 "success": True,
                 "message": f"Item '{item.name}' is now marked as {status_text}",
@@ -228,11 +294,24 @@ def toggle_item_availability_api(item_id):
 @admin_required
 def delete_menu_item_api(item_id):
     try:
+        ctx = get_current_user_context()
         with get_db() as db:
             item = db.query(MenuItem).filter_by(id=item_id).first()
             if not item:
                 return jsonify({"success": False, "error": "Menu item not found"}), 404
+            
+            i_name = item.name
             db.delete(item)
+
+            record_audit_log(
+                db,
+                action="DELETE_MENU_ITEM",
+                entity="MENU_ITEM",
+                entity_id=str(item_id),
+                details=f"Deleted menu item '{i_name}'",
+                **ctx
+            )
+
             return jsonify({"success": True, "message": "Item deleted successfully!"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -251,7 +330,6 @@ def sales_summary_api():
             today_start = datetime.combine(date.today(), time.min)
             today_end = datetime.combine(date.today(), time.max)
 
-            # Query all COMPLETED bills for today
             today_bills = (
                 db.query(PosBill)
                 .filter(
@@ -269,7 +347,6 @@ def sales_summary_api():
             card_sales = sum(b.total_amount for b in today_bills if b.payment_mode == "CARD")
             discount_given = sum(b.discount for b in today_bills)
 
-            # All-time stats (COMPLETED bills only)
             all_time_bills = db.query(PosBill).filter(PosBill.status == "COMPLETED").count()
             all_time_revenue = db.query(func.coalesce(func.sum(PosBill.total_amount), 0.0)).filter(PosBill.status == "COMPLETED").scalar() or 0.0
 
@@ -302,7 +379,6 @@ def best_sellers_api():
         with get_db() as db:
             limit = int(request.args.get("limit", 10))
             
-            # Query top items for completed bills only
             results = (
                 db.query(
                     PosBillItem.item_name,
@@ -340,13 +416,12 @@ def list_pos_bills_api():
         with get_db() as db:
             search_query = request.args.get("q", "").strip()
             payment_filter = request.args.get("payment_mode", "").strip().upper()
-            date_filter = request.args.get("date", "").strip()  # YYYY-MM-DD
+            date_filter = request.args.get("date", "").strip()
             status_filter = request.args.get("status", "COMPLETED").strip().upper()
 
             query = db.query(PosBill)
             if status_filter:
                 query = query.filter(PosBill.status == status_filter)
-
 
             if search_query:
                 query = query.filter(PosBill.bill_number.ilike(f"%{search_query}%"))
@@ -369,5 +444,74 @@ def list_pos_bills_api():
                 "bills": [b.to_dict() for b in bills]
             })
 
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# =========================================================================
+# Audit Logging & Database Backup APIs (Admin Only)
+# =========================================================================
+
+@admin_bp.route("/api/admin/audit-logs", methods=["GET"])
+@admin_required
+def list_audit_logs_api():
+    """Search and filter system audit trail."""
+    try:
+        with get_db() as db:
+            action_filter = request.args.get("action", "").strip()
+            entity_filter = request.args.get("entity", "").strip()
+            limit = int(request.args.get("limit", 100))
+
+            query = db.query(AuditLog)
+            if action_filter:
+                query = query.filter(AuditLog.action.ilike(f"%{action_filter}%"))
+            if entity_filter:
+                query = query.filter(AuditLog.entity == entity_filter.upper())
+
+            logs = query.order_by(AuditLog.id.desc()).limit(limit).all()
+
+            return jsonify({
+                "success": True,
+                "count": len(logs),
+                "logs": [l.to_dict() for l in logs]
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@admin_bp.route("/api/admin/database/backup", methods=["GET"])
+@admin_required
+def export_database_backup_api():
+    """Generates a complete JSON snapshot dump of the restaurant database."""
+    try:
+        import json
+        with get_db() as db:
+            users = [u.to_dict() for u in db.query(User).all()]
+            categories = [c.to_dict() for c in db.query(Category).all()]
+            menu_items = [m.to_dict() for m in db.query(MenuItem).all()]
+            bills = [b.to_dict() for b in db.query(PosBill).order_by(PosBill.id.desc()).limit(500).all()]
+            orders = [o.to_dict() for o in db.query(Order).order_by(Order.id.desc()).limit(500).all()]
+            printer_cfg = [p.to_dict() for p in db.query(PrinterConfigModel).all()]
+
+            backup_data = {
+                "system": "Hotel Mitraya Restaurant POS",
+                "exported_at": datetime.now().isoformat(),
+                "users": users,
+                "categories": categories,
+                "menu_items": menu_items,
+                "pos_bills": bills,
+                "orders": orders,
+                "printer_configs": printer_cfg
+            }
+
+            json_str = json.dumps(backup_data, indent=2)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"mitraya_backup_{timestamp}.json"
+
+            return Response(
+                json_str,
+                mimetype="application/json",
+                headers={"Content-Disposition": f"attachment;filename={filename}"}
+            )
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

@@ -5,5 +5,6 @@ psycopg2-binary>=2.9.9
 lxml>=4.9.0
 num2words>=0.5.12
 reportlab>=4.0.0
+requests>=2.31.0
+gunicorn>=21.2.0
 pywin32>=306; sys_platform == 'win32'
-gunicorn>=21.2.0; sys_platform != 'win32'

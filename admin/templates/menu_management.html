@@ -4,287 +4,301 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Menu Management — Hotel Mitraya</title>
-    
-    <meta name="theme-color" content="#0a1017">
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <link rel="stylesheet" href="/static/pos.css?v=2.1">
+    <script src="/static/pwa.js" defer></script>
+    <style>
+        :root {
+            --bg: #f0f4f9;
+            --card: #ffffff;
+            --surf: #f8fafc;
+            --bdr: #e2e8f0;
+            --bdhi: #cbd5e1;
+            --fp: #0f172a;
+            --fs: #334155;
+            --fm: #64748b;
+            --brand-navy: #1e3a8a;
+            --brand-crimson: #b91c1c;
+            --gold: #d97706;
+            --cyan: #0284c7;
+            --em: #059669;
+            --rose: #dc2626;
+            --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--sans); }
+        body {
+            background: var(--bg); color: var(--fp); min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse at 10% 10%, rgba(30,58,138,.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 90% 90%, rgba(185,28,28,.04) 0%, transparent 50%);
+        }
+
+        /* HEADER */
+        .hdr {
+            background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+            border-bottom: 3px solid var(--brand-crimson);
+            padding: 0 20px; height: 64px; display: flex; align-items: center;
+            justify-content: space-between; position: sticky; top: 0; z-index: 100;
+            color: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+        }
+        .hdr-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #ffffff; }
+        .hdr-brand img { width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); }
+        .hdr-brand h1 { font-size: 16px; font-weight: 900; letter-spacing: 1px; color: #ffffff; }
+        .hdr-brand span { font-size: 11px; color: #38bdf8; font-weight: 700; }
+        .hdr-nav { display: flex; align-items: center; gap: 8px; }
+        .nav-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.12); color: #ffffff; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all .2s; font-family: var(--sans); white-space: nowrap; }
+        .nav-btn:hover { background: rgba(255,255,255,.22); color: #ffffff; }
+        .nav-btn.active { background: #ffffff; color: var(--brand-navy); border-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+        .nav-btn.gold { border-color: rgba(251,191,36,.4); color: #fbbf24; }
+        .nav-btn.danger:hover { background: #b91c1c; border-color: #ef4444; }
+        .user-chip { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.2); border-radius: 20px; font-size: 12px; font-weight: 700; color: #ffffff; }
+        .role-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; }
+
+        /* MAIN CONTAINER */
+        .main { max-width: 1240px; margin: 0 auto; padding: 24px 20px; }
+        .hero { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+        .hero-title h2 { font-size: 22px; font-weight: 900; color: var(--fp); }
+        .hero-title p { font-size: 13px; color: var(--fs); margin-top: 3px; }
+        .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        /* BUTTONS */
+        .btn { padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border: none; transition: all .15s; text-decoration: none; font-family: var(--sans); }
+        .btn-navy { background: var(--brand-navy); color: #ffffff; box-shadow: 0 2px 6px rgba(30,58,138,.25); }
+        .btn-navy:hover { background: #172554; }
+        .btn-outline { background: #ffffff; border: 1.5px solid var(--bdr); color: var(--fp); }
+        .btn-outline:hover { background: var(--surf); border-color: var(--bdhi); }
+        .btn-gold { background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; }
+        .btn-gold:hover { background: #fde68a; }
+        .btn-danger { background: #fee2e2; color: #991b1b; border: 1.5px solid #fca5a5; }
+        .btn-danger:hover { background: #fecaca; }
+
+        /* FILTER BAR */
+        .filter-section { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+        .search-box { flex: 1; min-width: 260px; position: relative; }
+        .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--fm); font-size: 13px; }
+        .search-box input { width: 100%; height: 42px; padding-left: 38px; padding-right: 14px; border: 1.5px solid var(--bdr); border-radius: 11px; background: #ffffff; color: var(--fp); font-size: 13px; font-weight: 600; outline: none; transition: border-color .15s; }
+        .search-box input:focus { border-color: var(--brand-navy); box-shadow: 0 0 0 3px rgba(30,58,138,.1); }
+
+        .cat-pills { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; max-width: 100%; scrollbar-width: thin; }
+        .cat-pill { padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1.5px solid var(--bdr); background: #ffffff; color: var(--fs); cursor: pointer; white-space: nowrap; transition: all .15s; }
+        .cat-pill:hover { border-color: var(--bdhi); color: var(--fp); }
+        .cat-pill.active { background: var(--brand-navy); color: #ffffff; border-color: var(--brand-navy); box-shadow: 0 2px 6px rgba(30,58,138,.2); }
+
+        /* TABLE CARD */
+        .card { background: var(--card); border: 1.5px solid var(--bdr); border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.04); overflow: hidden; }
+        .card-hdr { padding: 16px 20px; border-bottom: 1.5px solid var(--bdr); display: flex; justify-content: space-between; align-items: center; background: #ffffff; }
+        .card-hdr h3 { font-size: 15px; font-weight: 800; color: var(--fp); display: flex; align-items: center; gap: 8px; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8fafc; text-align: left; padding: 12px 16px; font-weight: 800; color: var(--fs); border-bottom: 1.5px solid var(--bdr); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+        td { padding: 12px 16px; border-bottom: 1px solid var(--bdr); color: var(--fp); vertical-align: middle; }
+        tr:hover td { background: #f8fafc; }
+
+        /* BADGES */
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 14px; font-size: 11px; font-weight: 700; }
+        .badge-cat { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .badge-ok { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; cursor: pointer; }
+        .badge-err { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; cursor: pointer; }
+        .btn-action { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--bdr); background: #ffffff; color: var(--fs); cursor: pointer; transition: all .15s; font-size: 12px; }
+        .btn-action:hover { background: var(--surf); border-color: var(--bdhi); color: var(--fp); }
+        .btn-action.del:hover { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+        /* MODALS */
+        .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.6); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; }
+        .modal-bg.active { display: flex; animation: fadeIn .2s ease; }
+        .modal { background: #ffffff; border-radius: 18px; width: 100%; max-width: 520px; box-shadow: 0 20px 40px rgba(0,0,0,.2); border: 1.5px solid var(--bdr); overflow: hidden; animation: popUp .2s ease; }
+        .modal-head { padding: 18px 22px; border-bottom: 1.5px solid var(--bdr); display: flex; justify-content: space-between; align-items: center; }
+        .modal-head h3 { font-size: 16px; font-weight: 800; color: var(--fp); display: flex; align-items: center; gap: 8px; }
+        .modal-close { background: none; border: none; font-size: 20px; color: var(--fm); cursor: pointer; padding: 4px; border-radius: 6px; }
+        .modal-close:hover { color: var(--fp); }
+        .modal-body { padding: 22px; }
+        .modal-foot { padding: 14px 22px; background: #f8fafc; border-top: 1.5px solid var(--bdr); display: flex; justify-content: flex-end; gap: 10px; }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 700; color: var(--fs); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+        .form-control { width: 100%; height: 42px; padding: 0 14px; border: 1.5px solid var(--bdr); border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--fp); background: #ffffff; outline: none; transition: border-color .15s; }
+        .form-control:focus { border-color: var(--brand-navy); box-shadow: 0 0 0 3px rgba(30,58,138,.1); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* TOAST */
+        .toast-box { position: fixed; bottom: 20px; right: 20px; z-index: 300; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast { padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); animation: toastIn .2s ease; }
+        .toast.success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .toast.error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popUp { from { opacity: 0; transform: scale(.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
 <body>
 
-    <!-- Header Navigation -->
-    <header class="pos-header">
-        <div class="pos-header-inner">
-            <a href="/admin" class="brand-section">
-                <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="brand-logo-img">
-                <div class="brand-info">
-                    <h1>HOTEL MITRAYA</h1>
-                    <span class="brand-tag"><i class="fa-solid fa-utensils"></i> Menu Management</span>
-                </div>
-            </a>
-
-            <div class="header-nav">
-                <a href="/admin" class="nav-link-btn" title="Dashboard">
-                    <i class="fa-solid fa-gauge-high"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/pos" class="nav-link-btn" title="Open Quick POS">
-                    <i class="fa-solid fa-cash-register"></i>
-                    <span>Quick POS</span>
-                </a>
-                <a href="/display" target="_blank" class="nav-link-btn" title="Open Live Kitchen & Thermal Print Display Screen" style="border-color: rgba(245, 158, 11, 0.4);">
-                    <i class="fa-solid fa-tv" style="color: #fbbf24;"></i>
-                    <span style="color: #fbbf24; font-weight: 700;">Display</span>
-                </a>
-                <a href="/admin/reports" class="nav-link-btn" title="Reports">
-                    <i class="fa-solid fa-chart-line"></i>
-                    <span>Reports</span>
-                </a>
-                <a href="/" class="nav-link-btn btn-bulk-highlight" title="Bulk / Institution Billing">
-                    <i class="fa-solid fa-file-invoice"></i>
-                    <span>Bulk Billing</span>
-                </a>
-
-                <div class="user-badge">
-                    <span class="role-pill admin">ADMIN</span>
-                    <span>{{ user_name }}</span>
-                </div>
-
-                <button type="button" class="nav-link-btn btn-danger-hover" id="btn-logout" title="Logout">
-                    <i class="fa-solid fa-power-off"></i>
-                </button>
-
-                <!-- Mobile Hamburger Navigation Toggle -->
-                <button type="button" class="mobile-nav-toggle" id="btn-sidebar-toggle" title="Open Navigation Menu" aria-label="Toggle Navigation Menu">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
+    <!-- HEADER -->
+    <header class="hdr">
+        <a href="/admin" class="hdr-brand">
+            <img src="/static/logo.png" alt="Hotel Mitraya Logo">
+            <div>
+                <h1>HOTEL MITRAYA</h1>
+                <span><i class="fa-solid fa-utensils"></i> MENU CATALOG</span>
             </div>
+        </a>
+        <div class="hdr-nav">
+            <a href="/admin" class="nav-btn"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+            <a href="/pos" class="nav-btn"><i class="fa-solid fa-cash-register"></i> Quick POS</a>
+            <a href="/admin/menu" class="nav-btn active"><i class="fa-solid fa-utensils"></i> Menu</a>
+            <a href="/admin/reports" class="nav-btn"><i class="fa-solid fa-chart-line"></i> Reports</a>
+            <a href="/bulk" class="nav-btn gold"><i class="fa-solid fa-file-invoice"></i> Bulk Billing</a>
+            <div class="user-chip"><div class="role-dot"></div><span>{{ user_name }}</span></div>
+            <button type="button" class="nav-btn danger" id="btn-logout" title="Logout"><i class="fa-solid fa-power-off"></i></button>
         </div>
     </header>
 
-    <!-- Mobile Slide-In Sidebar Drawer & Backdrop -->
-    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-    <aside class="admin-mobile-sidebar" id="admin-mobile-sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-brand">
-                <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="sidebar-logo-img">
-                <div>
-                    <h2>HOTEL MITRAYA</h2>
-                    <small style="color: #93c5fd; font-size: 10px; font-weight: 700; text-transform: uppercase;">Admin Portal</small>
-                </div>
-            </div>
-            <button type="button" class="sidebar-close-btn" id="btn-sidebar-close" title="Close Menu">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <div class="sidebar-user-card">
-            <div class="sidebar-avatar">
-                <i class="fa-solid fa-user-shield"></i>
-            </div>
-            <div class="sidebar-user-info">
-                <span class="sidebar-user-name">{{ user_name }}</span>
-                <span class="role-pill admin" style="align-self: flex-start; font-size: 10px; margin-top: 2px;">ADMIN</span>
-            </div>
-        </div>
-
-        <nav class="sidebar-nav-section">
-            <div class="sidebar-section-label">Operations &amp; Billing</div>
-            
-            <a href="/admin" class="sidebar-nav-link">
-                <i class="fa-solid fa-gauge-high"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="/pos" class="sidebar-nav-link">
-                <i class="fa-solid fa-cash-register"></i>
-                <span>Quick POS Billing</span>
-            </a>
-            <a href="/display" target="_blank" class="sidebar-nav-link" style="color: #fbbf24;">
-                <i class="fa-solid fa-tv" style="color: #fbbf24;"></i>
-                <span>Live Kitchen &amp; Print Display</span>
-            </a>
-            <a href="/admin/menu" class="sidebar-nav-link active">
-                <i class="fa-solid fa-utensils"></i>
-                <span>Menu Management</span>
-            </a>
-            <a href="/admin/reports" class="sidebar-nav-link">
-                <i class="fa-solid fa-chart-line"></i>
-                <span>Sales Reports &amp; History</span>
-            </a>
-            <a href="/" class="sidebar-nav-link highlight">
-                <i class="fa-solid fa-file-invoice"></i>
-                <span>Bulk / Institution Billing</span>
-            </a>
-        </nav>
-
-
-        <div class="sidebar-footer">
-            <button type="button" class="sidebar-logout-btn" id="btn-sidebar-logout">
-                <i class="fa-solid fa-power-off"></i>
-                <span>Sign Out / Logout</span>
-            </button>
-        </div>
-    </aside>
-
-    <!-- Main Container -->
-    <main class="admin-container">
-        
-        <div class="dashboard-hero">
+    <!-- MAIN CONTENT -->
+    <main class="main">
+        <div class="hero">
             <div class="hero-title">
                 <h2>Restaurant Menu &amp; Pricing Catalog</h2>
-                <p>Add new dishes, update pricing, change display orders, or toggle item availability.</p>
+                <p>Manage food catalog, update live pricing, categorize dishes, and toggle kitchen availability.</p>
             </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="button" class="nav-link-btn" id="btn-open-cat-modal" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
-                    <i class="fa-solid fa-folder-plus"></i>
-                    <span>Manage Categories</span>
+            <div class="hero-actions">
+                <button type="button" class="btn btn-gold" id="btn-open-cat-modal">
+                    <i class="fa-solid fa-folder-tree"></i> Manage Categories
                 </button>
-                <button type="button" class="btn-checkout" id="btn-open-item-modal" style="width: auto; padding: 9px 18px; font-size: 13px;">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Add New Food Item</span>
+                <button type="button" class="btn btn-navy" id="btn-open-item-modal">
+                    <i class="fa-solid fa-plus"></i> Add New Food Item
                 </button>
             </div>
         </div>
 
         <!-- Filter Bar -->
-        <div style="display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; align-items: center;">
-            <div style="flex: 1; min-width: 260px; position: relative;">
-                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                <input type="text" id="menu-filter-search" class="search-input" placeholder="Search dish name or item code..." style="width: 100%;">
+        <div class="filter-section">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="menu-filter-search" placeholder="Search dish name, code, or category...">
             </div>
-            
-            <div style="display: flex; gap: 6px; overflow-x: auto; max-width: 100%;" id="category-filter-tabs">
-                <button type="button" class="category-pill active" data-cat-id="all">All Items</button>
+            <div class="cat-pills" id="category-filter-tabs">
+                <button type="button" class="cat-pill active" data-cat-id="all">All Items</button>
             </div>
         </div>
 
         <!-- Menu Items Table -->
-        <div class="table-card">
-            <div class="table-header">
-                <h3 style="font-size: 15px; font-weight: 800;"><i class="fa-solid fa-bowl-food"></i> Food Items List (<span id="items-total-count">0</span>)</h3>
+        <div class="card">
+            <div class="card-hdr">
+                <h3><i class="fa-solid fa-bowl-food" style="color:var(--brand-navy);"></i> Food Items List (<span id="items-total-count">0</span>)</h3>
             </div>
-            <div class="table-responsive">
-                <table class="custom-table">
+            <div class="table-wrap">
+                <table>
                     <thead>
                         <tr>
                             <th>Code</th>
-                            <th>Item Name</th>
+                            <th>Dish Name</th>
                             <th>Category</th>
                             <th>Unit Price</th>
                             <th>Availability</th>
-                            <th>Order</th>
+                            <th>Display Order</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="menu-items-table-body">
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">Loading menu items...</td>
-                        </tr>
+                        <tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--fm);">Loading menu items...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
-
     </main>
 
-    <!-- Modal: Add / Edit Menu Item -->
-    <div class="modal-overlay" id="item-modal">
-        <div class="modal-box" style="max-width: 520px;">
-            <div class="modal-header">
+    <!-- Modal: Add / Edit Item -->
+    <div class="modal-bg" id="item-modal">
+        <div class="modal">
+            <div class="modal-head">
                 <h3 id="item-modal-title"><i class="fa-solid fa-plus"></i> Add Food Item</h3>
-                <button type="button" class="modal-close-btn" id="btn-close-item-modal">&times;</button>
+                <button type="button" class="modal-close" id="btn-close-item-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="item-form" onsubmit="event.preventDefault();" style="display: flex; flex-direction: column; gap: 14px;">
+                <form id="item-form" onsubmit="event.preventDefault();">
                     <input type="hidden" id="item-id">
-
-                    <div>
-                        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Food Item Name <span style="color:var(--accent-rose)">*</span></label>
-                        <input type="text" id="item-name" class="search-input" placeholder="e.g. Dahi Dhapata & Biryani Plate" required>
+                    <div class="form-group">
+                        <label>Food Item Name <span style="color:var(--rose)">*</span></label>
+                        <input type="text" id="item-name" class="form-control" placeholder="e.g. Dahi Dhapata & Biryani Plate" required>
                     </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div>
-                            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Category</label>
-                            <select id="item-category-id" class="search-input" style="padding: 10px 14px;">
-                                <!-- Dynamically populated -->
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="item-category-id" class="form-control">
+                                <!-- Populated dynamically -->
                             </select>
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Item Code (Optional)</label>
-                            <input type="text" id="item-code" class="search-input" placeholder="e.g. SP01">
+                        <div class="form-group">
+                            <label>Item Code (Optional)</label>
+                            <input type="text" id="item-code" class="form-control" placeholder="e.g. SP01">
                         </div>
                     </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div>
-                            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Selling Price (₹) <span style="color:var(--accent-rose)">*</span></label>
-                            <input type="number" id="item-price" class="search-input" step="0.5" min="0" placeholder="130.00" required>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Price (₹) <span style="color:var(--rose)">*</span></label>
+                            <input type="number" id="item-price" class="form-control" step="0.5" min="0" placeholder="130.00" required>
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Display Order</label>
-                            <input type="number" id="item-order" class="search-input" value="0" placeholder="0">
+                        <div class="form-group">
+                            <label>Display Order</label>
+                            <input type="number" id="item-order" class="form-control" value="0">
                         </div>
                     </div>
-
-                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
-                        <input type="checkbox" id="item-is-available" checked style="width: 18px; height: 18px; cursor: pointer;">
-                        <label for="item-is-available" style="font-size: 13px; font-weight: 600; cursor: pointer;">Available for POS Sale (In Stock)</label>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                        <input type="checkbox" id="item-is-available" checked style="width: 18px; height: 18px; accent-color: var(--brand-navy); cursor: pointer;">
+                        <label for="item-is-available" style="font-size: 13px; font-weight: 700; color: var(--fp); cursor: pointer; margin: 0;">Available for POS Sale (In Stock)</label>
                     </div>
-
-                    <div id="item-form-error" style="display: none; color: var(--accent-rose); font-size: 13px; font-weight: 600;"></div>
+                    <div id="item-form-error" style="display: none; color: var(--rose); font-size: 12px; font-weight: 700; margin-top: 10px;"></div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="nav-link-btn" id="btn-cancel-item-modal">Cancel</button>
-                <button type="button" class="btn-checkout" id="btn-save-item" style="width: auto; padding: 10px 22px;">
-                    <i class="fa-solid fa-check"></i> Save Item
-                </button>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-outline" id="btn-cancel-item-modal">Cancel</button>
+                <button type="button" class="btn btn-navy" id="btn-save-item"><i class="fa-solid fa-check"></i> Save Item</button>
             </div>
         </div>
     </div>
 
     <!-- Modal: Category Management -->
-    <div class="modal-overlay" id="cat-modal">
-        <div class="modal-box" style="max-width: 600px;">
-            <div class="modal-header">
+    <div class="modal-bg" id="cat-modal">
+        <div class="modal" style="max-width: 580px;">
+            <div class="modal-head">
                 <h3><i class="fa-solid fa-folder-open"></i> Manage Menu Categories</h3>
-                <button type="button" class="modal-close-btn" id="btn-close-cat-modal">&times;</button>
+                <button type="button" class="modal-close" id="btn-close-cat-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Add new Category row -->
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <input type="text" id="new-cat-name" class="search-input" placeholder="New Category Name (e.g. Soups)" style="flex: 1;">
-                    <input type="number" id="new-cat-order" class="search-input" placeholder="Order" style="width: 80px;" value="0">
-                    <button type="button" class="btn-checkout" id="btn-add-cat" style="width: auto; padding: 0 16px; font-size: 13px;">Add</button>
+                    <input type="text" id="new-cat-name" class="form-control" placeholder="New Category Name (e.g. Soups)" style="flex: 1;">
+                    <input type="number" id="new-cat-order" class="form-control" placeholder="Order" style="width: 80px;" value="0">
+                    <button type="button" class="btn btn-navy" id="btn-add-cat">Add</button>
                 </div>
-
-                <div class="table-responsive">
-                    <table class="custom-table" style="font-size: 13px;">
+                <div class="table-wrap">
+                    <table>
                         <thead>
                             <tr>
                                 <th>Name</th>
                                 <th>Order</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody id="cat-modal-tbody">
-                            <!-- Populated -->
-                        </tbody>
+                        <tbody id="cat-modal-tbody"></tbody>
                     </table>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="nav-link-btn" id="btn-dismiss-cat-modal">Close</button>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-outline" id="btn-dismiss-cat-modal">Close</button>
             </div>
         </div>
     </div>
 
-    <div class="toast-container" id="toast-container"></div>
+    <div class="toast-box" id="toast-container"></div>
 
     <script>
         (function() {
@@ -341,17 +355,17 @@
 
             function renderCategoryFilterTabs() {
                 const bar = document.getElementById("category-filter-tabs");
-                bar.innerHTML = `<button type="button" class="category-pill ${activeCatFilter === "all" ? "active" : ""}" data-cat-id="all">All Items</button>`;
+                bar.innerHTML = `<button type="button" class="cat-pill ${activeCatFilter === "all" ? "active" : ""}" data-cat-id="all">All Items</button>`;
 
                 categories.forEach(cat => {
                     const btn = document.createElement("button");
                     btn.type = "button";
-                    btn.className = `category-pill ${activeCatFilter == cat.id ? "active" : ""}`;
+                    btn.className = `cat-pill ${activeCatFilter == cat.id ? "active" : ""}`;
                     btn.dataset.catId = cat.id;
                     btn.textContent = cat.name;
                     btn.addEventListener("click", () => {
                         activeCatFilter = cat.id;
-                        document.querySelectorAll("#category-filter-tabs .category-pill").forEach(p => p.classList.remove("active"));
+                        document.querySelectorAll("#category-filter-tabs .cat-pill").forEach(p => p.classList.remove("active"));
                         btn.classList.add("active");
                         renderMenuItemsTable();
                     });
@@ -362,7 +376,7 @@
                 if (allBtn) {
                     allBtn.addEventListener("click", () => {
                         activeCatFilter = "all";
-                        document.querySelectorAll("#category-filter-tabs .category-pill").forEach(p => p.classList.remove("active"));
+                        document.querySelectorAll("#category-filter-tabs .cat-pill").forEach(p => p.classList.remove("active"));
                         allBtn.classList.add("active");
                         renderMenuItemsTable();
                     });
@@ -396,7 +410,7 @@
                 document.getElementById("items-total-count").textContent = filtered.length;
 
                 if (filtered.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">No menu items found.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--fm);">No matching menu items found.</td></tr>`;
                     return;
                 }
 
@@ -404,20 +418,20 @@
                 filtered.forEach(item => {
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td><span style="font-family:'JetBrains Mono'; font-size:12px; font-weight:700; color:var(--text-muted);">${item.code || "-"}</span></td>
+                        <td><span style="font-family:'JetBrains Mono'; font-size:12px; font-weight:700; color:var(--fm);">${item.code || "-"}</span></td>
                         <td><strong>${item.name}</strong></td>
-                        <td><span class="badge-tag" style="background:rgba(255,255,255,0.06); color:#e2e8f0;">${item.category_name || "Uncategorized"}</span></td>
-                        <td><strong style="color:var(--accent-emerald); font-family:'JetBrains Mono';">${formatMoney(item.price)}</strong></td>
+                        <td><span class="badge badge-cat">${item.category_name || "Uncategorized"}</span></td>
+                        <td><strong style="color:var(--em); font-family:'JetBrains Mono';">${formatMoney(item.price)}</strong></td>
                         <td>
-                            <button type="button" class="nav-link-btn btn-toggle-avail" data-id="${item.id}" style="padding: 4px 10px; font-size: 11px;">
-                                <span class="badge-tag ${item.is_available ? 'available' : 'disabled'}">${item.is_available ? 'Available' : 'Disabled'}</span>
+                            <button type="button" class="badge ${item.is_available ? 'badge-ok' : 'badge-err'} btn-toggle-avail" data-id="${item.id}" title="Click to toggle availability" style="border:none; cursor:pointer;">
+                                <i class="fa-solid ${item.is_available ? 'fa-check' : 'fa-xmark'}"></i> ${item.is_available ? 'Available' : 'Disabled'}
                             </button>
                         </td>
                         <td>${item.display_order}</td>
                         <td>
                             <div style="display: flex; gap: 6px;">
-                                <button type="button" class="nav-link-btn btn-edit-item" style="padding: 4px 8px; font-size: 12px;" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-                                <button type="button" class="nav-link-btn btn-del-item" style="padding: 4px 8px; font-size: 12px; color:var(--accent-rose);" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+                                <button type="button" class="btn-action btn-edit-item" title="Edit Item"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button type="button" class="btn-action del btn-del-item" title="Delete Item"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
                         </td>
                     `;
@@ -560,7 +574,7 @@
                 const tbody = document.getElementById("cat-modal-tbody");
                 tbody.innerHTML = "";
                 if (categories.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted);">No categories added yet.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--fm);">No categories added yet.</td></tr>`;
                     return;
                 }
 
@@ -569,9 +583,9 @@
                     tr.innerHTML = `
                         <td><strong>${c.name}</strong></td>
                         <td>${c.display_order}</td>
-                        <td><span class="badge-tag ${c.is_active ? 'available' : 'disabled'}">${c.is_active ? 'Active' : 'Hidden'}</span></td>
+                        <td><span class="badge ${c.is_active ? 'badge-ok' : 'badge-err'}">${c.is_active ? 'Active' : 'Hidden'}</span></td>
                         <td>
-                            <button type="button" class="nav-link-btn btn-del-cat" style="padding:4px 8px; font-size:11px; color:var(--accent-rose);" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+                            <button type="button" class="btn-action del btn-del-cat" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     `;
                     tr.querySelector(".btn-del-cat").addEventListener("click", async () => {
@@ -629,43 +643,14 @@
                 }
             });
 
-            // Logout Handlers
-            const handleLogout = async () => {
-                try {
-                    await fetch("/api/logout", { method: "POST" });
-                } catch (e) {
-                    console.warn("Logout error:", e);
-                }
-                window.location.href = "/login";
-            };
-
+            // Logout Handler
             const btnLogout = document.getElementById("btn-logout");
-            if (btnLogout) btnLogout.addEventListener("click", handleLogout);
-
-            const btnSidebarLogout = document.getElementById("btn-sidebar-logout");
-            if (btnSidebarLogout) btnSidebarLogout.addEventListener("click", handleLogout);
-
-            // Mobile Sidebar Drawer Controls
-            const sidebar = document.getElementById("admin-mobile-sidebar");
-            const sidebarBackdrop = document.getElementById("sidebar-backdrop");
-            const btnSidebarToggle = document.getElementById("btn-sidebar-toggle");
-            const btnSidebarClose = document.getElementById("btn-sidebar-close");
-
-            function openSidebar() {
-                if (sidebar) sidebar.classList.add("open");
-                if (sidebarBackdrop) sidebarBackdrop.classList.add("active");
-                document.body.style.overflow = "hidden";
+            if (btnLogout) {
+                btnLogout.addEventListener("click", async () => {
+                    try { await fetch("/api/logout", { method: "POST" }); } catch (e) {}
+                    window.location.replace("/login");
+                });
             }
-
-            function closeSidebar() {
-                if (sidebar) sidebar.classList.remove("open");
-                if (sidebarBackdrop) sidebarBackdrop.classList.remove("active");
-                document.body.style.overflow = "";
-            }
-
-            if (btnSidebarToggle) btnSidebarToggle.addEventListener("click", openSidebar);
-            if (btnSidebarClose) btnSidebarClose.addEventListener("click", closeSidebar);
-            if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
 
             // Init
             loadCategories();
