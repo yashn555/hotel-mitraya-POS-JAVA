@@ -55,9 +55,9 @@ def verify_all_system_links():
     # -------------------------------------------------------------
     # 3. CASHIER (WAITER) PERMISSIONS
     # -------------------------------------------------------------
-    print("\n[3] Verifying Cashier Session (PIN 1234)...")
+    print("\n[3] Verifying Cashier Session (PIN 5678)...")
     cashier = requests.Session()
-    r_login_c = cashier.post(f"{BASE_URL}/api/pos/login", json={"role": "cashier", "pin": "1234"})
+    r_login_c = cashier.post(f"{BASE_URL}/api/pos/login", json={"role": "cashier", "pin": "5678"})
     assert r_login_c.status_code == 200, "Cashier login failed"
     print("  -> Logged in as Cashier")
 

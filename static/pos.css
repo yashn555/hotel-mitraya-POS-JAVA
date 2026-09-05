@@ -291,21 +291,21 @@ body {
     grid-template-columns: 1fr 420px;
     flex: 1;
     min-height: calc(100vh - var(--header-height));
-    max-height: calc(100vh - var(--header-height));
-    overflow: hidden;
     max-width: 1700px;
     margin: 0 auto;
     width: 100%;
     padding: 14px 20px;
     gap: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 1100px) {
     .pos-layout {
         grid-template-columns: 1fr;
-        max-height: none;
-        overflow: visible;
         padding: 10px;
+        gap: 14px;
     }
 }
 
@@ -314,8 +314,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    overflow: hidden;
-    height: 100%;
+    min-height: 380px;
 }
 
 /* Mode Switcher Bar (Walk-in vs Dining Tables) */
@@ -816,9 +815,8 @@ body {
     border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    height: 100%;
     box-shadow: var(--shadow-md);
+    min-height: 480px;
 }
 
 .cart-header {

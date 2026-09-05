@@ -93,10 +93,14 @@ def seed_default_data(session):
             pin_hash=generate_password_hash(admin_pin)
         )
         session.add(admin_user)
+    else:
+        # Keep PIN synchronized with requested credentials
+        admin_pin = os.environ.get("ADMIN_PIN", "2005").strip()
+        admin_user.pin_hash = generate_password_hash(admin_pin)
 
     cashier_user = session.query(User).filter_by(username="cashier").first()
     if not cashier_user:
-        cashier_pin = os.environ.get("CASHIER_PIN", "1234").strip()
+        cashier_pin = os.environ.get("CASHIER_PIN", "5678").strip()
         cashier_user = User(
             username="cashier",
             role="cashier",
@@ -104,10 +108,13 @@ def seed_default_data(session):
             pin_hash=generate_password_hash(cashier_pin)
         )
         session.add(cashier_user)
+    else:
+        cashier_pin = os.environ.get("CASHIER_PIN", "5678").strip()
+        cashier_user.pin_hash = generate_password_hash(cashier_pin)
 
     waiter_user = session.query(User).filter_by(username="waiter").first()
     if not waiter_user:
-        waiter_pin = os.environ.get("WAITER_PIN", "5678").strip()
+        waiter_pin = os.environ.get("WAITER_PIN", "1234").strip()
         waiter_user = User(
             username="waiter",
             role="waiter",
@@ -115,6 +122,9 @@ def seed_default_data(session):
             pin_hash=generate_password_hash(waiter_pin)
         )
         session.add(waiter_user)
+    else:
+        waiter_pin = os.environ.get("WAITER_PIN", "1234").strip()
+        waiter_user.pin_hash = generate_password_hash(waiter_pin)
 
     session.flush()
 

@@ -21,9 +21,9 @@ def run_tests():
         u_admin = db.query(User).filter_by(username="admin").first()
         if u_admin: u_admin.pin_hash = generate_password_hash("2005")
         u_cashier = db.query(User).filter_by(username="cashier").first()
-        if u_cashier: u_cashier.pin_hash = generate_password_hash("1234")
+        if u_cashier: u_cashier.pin_hash = generate_password_hash("5678")
         u_waiter = db.query(User).filter_by(username="waiter").first()
-        if u_waiter: u_waiter.pin_hash = generate_password_hash("5678")
+        if u_waiter: u_waiter.pin_hash = generate_password_hash("1234")
         db.flush()
 
     # 1. Unauthenticated request protection
@@ -39,7 +39,7 @@ def run_tests():
     
     # Waiter Login
     waiter_client = app.test_client()
-    r_waiter = waiter_client.post("/api/login", json={"role": "waiter", "pin": "5678"})
+    r_waiter = waiter_client.post("/api/login", json={"role": "waiter", "pin": "1234"})
     assert r_waiter.status_code == 200, f"Waiter login failed: {r_waiter.get_json()}"
     w_data = r_waiter.get_json()
     assert w_data["success"] == True
@@ -61,7 +61,7 @@ def run_tests():
 
     # Cashier Login
     cashier_client = app.test_client()
-    r_cashier = cashier_client.post("/api/login", json={"role": "cashier", "pin": "1234"})
+    r_cashier = cashier_client.post("/api/login", json={"role": "cashier", "pin": "5678"})
     assert r_cashier.status_code == 200
     c_data = r_cashier.get_json()
     assert c_data["role"] == "cashier"

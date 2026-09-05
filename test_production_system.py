@@ -40,7 +40,7 @@ def run_production_tests():
     waiter_session = requests.Session()
     r_waiter_login = waiter_session.post(
         f"{BASE_URL}/api/login",
-        json={"role": "waiter", "pin": "5678"}
+        json={"role": "waiter", "pin": "1234"}
     )
     assert r_waiter_login.status_code == 200, f"Waiter login failed: {r_waiter_login.text}"
     waiter_data = r_waiter_login.json()
@@ -62,11 +62,11 @@ def run_production_tests():
     assert r_waiter_api_admin.status_code == 403, f"Waiter API call to /api/admin should be 403: {r_waiter_api_admin.status_code}"
     print("    -> OK: Waiter properly blocked from Admin Portal & Admin APIs (403 Forbidden)")
 
-    # 1B. Cashier Login (PIN 1234)
+    # 1B. Cashier Login (PIN 5678)
     cashier_session = requests.Session()
     r_cashier_login = cashier_session.post(
         f"{BASE_URL}/api/login",
-        json={"role": "cashier", "pin": "1234"}
+        json={"role": "cashier", "pin": "5678"}
     )
     assert r_cashier_login.status_code == 200
     cashier_data = r_cashier_login.json()

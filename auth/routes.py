@@ -33,6 +33,15 @@ def login_api():
         with get_db() as db:
             user = None
             
+            # Ensure users exist on serverless cold starts
+            try:
+                if db.query(User).count() == 0:
+                    from database.db import seed_default_data
+                    seed_default_data(db)
+            except Exception:
+                from database.db import init_db
+                init_db()
+            
             # 1. If specific role requested
             if requested_role in ["admin", "cashier", "waiter"]:
                 user = db.query(User).filter_by(role=requested_role, is_active=True).first()

@@ -121,14 +121,18 @@
         </button>
         <div class="msg" id="msg"></div>
         <div class="quick-hint">
-            <span id="pin-hint">Default PIN: Cashier (1234) • Waiter (5678) • Admin (2005)</span>
+            <span>Hotel Mitraya • Pure Veg Restaurant POS Suite</span>
         </div>
     </div>
 </div>
 
 <script>
 (function(){
-    let role = 'cashier';
+    const urlParams = new URLSearchParams(window.location.search);
+    const isMobileDevice = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.matchMedia('(display-mode: standalone)').matches;
+    const isWaiterOnlyMode = (urlParams.get('mode') === 'waiter' || isMobileDevice) && urlParams.get('mode') !== 'desktop';
+
+    let role = isWaiterOnlyMode ? 'waiter' : (urlParams.get('role') || 'cashier');
     let pin = '';
     const dots = document.querySelectorAll('.dot');
     const msg = document.getElementById('msg');
@@ -136,6 +140,23 @@
     const btnText = document.getElementById('btn-text');
     const pinLabel = document.getElementById('pin-label');
     const tabs = document.querySelectorAll('.tab');
+    const roleTabsContainer = document.getElementById('role-tabs');
+
+    if (isWaiterOnlyMode && roleTabsContainer) {
+        // On Mobile App: Only show Waiter login (hide Admin & Cashier tabs)
+        roleTabsContainer.style.display = 'none';
+        role = 'waiter';
+        pinLabel.textContent = 'Enter Waiter PIN';
+        btnText.textContent = 'Open Waiter App';
+    } else {
+        // Desktop / Counter view
+        tabs.forEach(t => {
+            if (t.dataset.role === role) t.classList.add('on');
+            else t.classList.remove('on');
+        });
+        pinLabel.textContent = `Enter ${role.charAt(0).toUpperCase() + role.slice(1)} PIN`;
+        btnText.textContent = role === 'admin' ? 'Enter Admin Panel' : (role === 'waiter' ? 'Open Waiter App' : 'Unlock Counter');
+    }
 
     function syncUI() {
         dots.forEach((d, i) => {
