@@ -1032,30 +1032,144 @@
         }
     }
 
-    // ─── DIRECT THERMAL PRINTING OR GRACEFUL DISCONNECTED ALERT ────────────────
+    // ─── DIRECT THERMAL PRINTING IN BROWSER TO WIRED USB PRINTER ──────────────
     async function handleDirectThermalPrint(bill) {
-        // Case 1: Bluetooth Thermal Printer is Connected
-        if (printerState.type === "BLUETOOTH" && window.MitrayaBluetoothPrinter && window.MitrayaBluetoothPrinter.isConnected()) {
-            try {
-                await window.MitrayaBluetoothPrinter.printReceipt(bill);
-                showToast(`Receipt #${bill.bill_number} printed via Bluetooth!`, "success");
-                return;
-            } catch (be) {
-                console.warn("BT print error:", be);
-                showToast(`Bluetooth print failed: ${be.message}`, "warning");
-            }
-        }
+        if (!bill) return;
 
-        // Case 2: System / Spooler / Windows Driver is Connected & Ready
-        if (printerState.connected && printerState.type === "SYSTEM") {
-            showToast(`Bill #${bill.bill_number} saved & thermal print dispatched!`, "success");
-            return;
-        }
-
-        // Case 3: PRINTER NOT CONNECTED!
-        // Show prominent warning and open receipt preview so cashier can print or connect
-        showToast(`⚠️ PRINTER NOT CONNECTED! Bill #${bill.bill_number} saved successfully.`, "warning", 6000);
+        // 1. Populate receipt modal for on-screen reference
         openReceiptPreviewModal(bill);
+
+        // 2. Direct Browser Thermal Print to Connected USB/Windows Default Printer (HOIN HOP-H58)
+        printDirectBrowserReceipt(bill);
+    }
+
+    function printDirectBrowserReceipt(bill) {
+        const is58 = printerState.paperWidth === 58;
+        const widthMm = is58 ? "56mm" : "76mm";
+        const pageMm = is58 ? "58mm" : "80mm";
+        const fontSize = is58 ? "11px" : "12px";
+
+        const itemsHtml = (bill.items || []).map(i => `
+            <tr>
+                <td style="text-align: left; padding: 2px 0; font-weight: 700; word-break: break-word;">${i.item_name || i.name}</td>
+                <td style="text-align: center; padding: 2px 0;">${i.quantity}</td>
+                <td style="text-align: right; padding: 2px 0;">${Number(i.unit_price).toFixed(0)}</td>
+                <td style="text-align: right; padding: 2px 0; font-weight: 700;">${Number(i.total_price || (i.quantity * i.unit_price)).toFixed(2)}</td>
+            </tr>
+        `).join("");
+
+        const receiptDoc = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Bill #${bill.bill_number}</title>
+                <style>
+                    @page { size: ${pageMm} auto; margin: 0; }
+                    body {
+                        font-family: 'JetBrains Mono', 'Courier New', monospace;
+                        width: ${widthMm};
+                        margin: 0 auto;
+                        padding: 4px 2px;
+                        color: #000;
+                        background: #fff;
+                        font-size: ${fontSize};
+                        line-height: 1.3;
+                    }
+                    .center { text-align: center; }
+                    .bold { font-weight: bold; }
+                    .divider { border-bottom: 1px dashed #000; margin: 4px 0; }
+                    .double-divider { border-bottom: 2px solid #000; margin: 4px 0; }
+                    .table-row { display: flex; justify-content: space-between; margin: 2px 0; }
+                    table { width: 100%; border-collapse: collapse; margin: 3px 0; font-size: ${fontSize}; }
+                    .title { font-size: 14px; font-weight: 900; }
+                    .large-total { font-size: 14px; font-weight: 900; }
+                </style>
+            </head>
+            <body>
+                <div class="center">
+                    <div class="title">HOTEL MITRAYA</div>
+                    <div style="font-size: 10px;">Pure Veg Restaurant &amp; Caterers</div>
+                    <div style="font-size: 9px;">Akurdi, Pune - 411035</div>
+                    <div style="font-size: 9px;">Ph: +91 9158691003</div>
+                </div>
+                <div class="divider"></div>
+                <div class="table-row bold">
+                    <span>${bill.order_type === 'DINING' ? 'TABLE: Table ' + bill.table_number : (bill.notes ? 'TABLE: ' + bill.notes : 'WALK-IN')}</span>
+                    <span>${bill.bill_number}</span>
+                </div>
+                <div class="table-row" style="font-size: 9px;">
+                    <span>Date: ${bill.created_at || new Date().toLocaleString("en-IN")}</span>
+                    <span>Mode: ${bill.payment_mode || 'CASH'}</span>
+                </div>
+                <div class="divider"></div>
+                <table>
+                    <thead>
+                        <tr style="border-bottom: 1px solid #000; font-size: 10px;">
+                            <th style="text-align: left;">Item</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th style="text-align: right;">Rate</th>
+                            <th style="text-align: right;">Amt</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <div class="divider"></div>
+                <div class="table-row">
+                    <span>Sub Total:</span>
+                    <span>₹${Number(bill.subtotal || 0).toFixed(2)}</span>
+                </div>
+                ${bill.discount > 0 ? `
+                <div class="table-row">
+                    <span>Discount:</span>
+                    <span>-₹${Number(bill.discount).toFixed(2)}</span>
+                </div>` : ''}
+                <div class="double-divider"></div>
+                <div class="table-row large-total">
+                    <span>GRAND TOTAL:</span>
+                    <span>₹${Number(bill.total_amount || 0).toFixed(2)}</span>
+                </div>
+                <div class="double-divider"></div>
+                ${(bill.payment_mode === 'CASH' && bill.received_amount) ? `
+                <div class="table-row" style="font-size: 10px;">
+                    <span>Cash Tendered:</span>
+                    <span>₹${Number(bill.received_amount).toFixed(2)}</span>
+                </div>
+                <div class="table-row" style="font-size: 10px;">
+                    <span>Change Return:</span>
+                    <span>₹${Number(bill.change_amount || 0).toFixed(2)}</span>
+                </div>
+                <div class="divider"></div>` : ''}
+                <div class="center" style="font-size: 10px; margin-top: 4px;">
+                    Thank You! Visit Again.<br>
+                    *** Have a Delicious Day ***
+                </div>
+            </body>
+            </html>
+        `;
+
+        let iframe = document.getElementById("direct-print-frame");
+        if (iframe) iframe.remove();
+
+        iframe = document.createElement("iframe");
+        iframe.id = "direct-print-frame";
+        iframe.style.position = "fixed";
+        iframe.style.right = "0";
+        iframe.style.bottom = "0";
+        iframe.style.width = "0";
+        iframe.style.height = "0";
+        iframe.style.border = "none";
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(receiptDoc);
+        doc.close();
+
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        }, 250);
     }
 
     // ─── RECEIPT MODAL PREVIEW & POPULATION ───────────────────────────────────
