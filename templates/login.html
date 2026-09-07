@@ -72,7 +72,6 @@
         @keyframes up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .quick-hint { font-size: 11px; text-align: center; margin-top: 14px; color: var(--fm); }
         @media (max-width: 768px) {
-            #role-tabs { display: none !important; }
             body { padding: 12px; }
             .card { padding: 22px 18px; border-radius: 18px; }
             .k { height: 54px; font-size: 22px; }
@@ -136,10 +135,10 @@
 <script>
 (function(){
     const urlParams = new URLSearchParams(window.location.search);
-    const isMobileDevice = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.matchMedia('(display-mode: standalone)').matches;
-    const isWaiterOnlyMode = (urlParams.get('mode') === 'waiter' || isMobileDevice) && urlParams.get('mode') !== 'desktop';
-
-    let role = isWaiterOnlyMode ? 'waiter' : (urlParams.get('role') || 'cashier');
+    let role = urlParams.get('role') || (urlParams.get('mode') === 'waiter' ? 'waiter' : 'cashier');
+    if (!['admin', 'cashier', 'waiter'].includes(role)) {
+        role = 'cashier';
+    }
     let pin = '';
     const dots = document.querySelectorAll('.dot');
     const msg = document.getElementById('msg');
@@ -147,16 +146,8 @@
     const btnText = document.getElementById('btn-text');
     const pinLabel = document.getElementById('pin-label');
     const tabs = document.querySelectorAll('.tab');
-    const roleTabsContainer = document.getElementById('role-tabs');
 
-    if (isWaiterOnlyMode && roleTabsContainer) {
-        // On Mobile App: Only show Waiter login (hide Admin & Cashier tabs)
-        roleTabsContainer.style.display = 'none';
-        role = 'waiter';
-        pinLabel.textContent = 'Enter Waiter PIN';
-        btnText.textContent = 'Open Waiter App';
-    } else {
-        // Desktop / Counter view
+    function updateRoleUI() {
         tabs.forEach(t => {
             if (t.dataset.role === role) t.classList.add('on');
             else t.classList.remove('on');
@@ -164,6 +155,8 @@
         pinLabel.textContent = `Enter ${role.charAt(0).toUpperCase() + role.slice(1)} PIN`;
         btnText.textContent = role === 'admin' ? 'Enter Admin Panel' : (role === 'waiter' ? 'Open Waiter App' : 'Unlock Counter');
     }
+
+    updateRoleUI();
 
     function syncUI() {
         dots.forEach((d, i) => {
