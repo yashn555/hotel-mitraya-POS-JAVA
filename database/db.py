@@ -7,7 +7,6 @@ Includes non-destructive automatic schema migration, initial seed data, and audi
 
 import os
 from contextlib import contextmanager
-from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from werkzeug.security import generate_password_hash
@@ -17,7 +16,11 @@ from database.models import (
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+except Exception:
+    pass
 
 # Database URL configuration (PostgreSQL in production, SQLite locally)
 DATABASE_URL = os.environ.get("DATABASE_URL")
