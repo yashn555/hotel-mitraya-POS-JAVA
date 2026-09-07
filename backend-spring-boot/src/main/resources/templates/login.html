@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hotel Mitraya — Secure Login</title>
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="/static/pwa.js" defer></script>
+    <style>
+        :root {
+            --bg: #f0f4f9;
+            --card: #ffffff;
+            --surf: #f8fafc;
+            --bdr: #e2e8f0;
+            --bdhi: #cbd5e1;
+            --fp: #0f172a;
+            --fs: #475569;
+            --fm: #64748b;
+            --brand-navy: #1e3a8a;
+            --brand-crimson: #b91c1c;
+            --brand-emerald: #059669;
+            --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; font-family: var(--sans); }
+        body {
+            background: var(--bg); color: var(--fp); min-height: 100vh;
+            display: flex; align-items: center; justify-content: center; padding: 16px;
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(30,58,138,.08) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 80%, rgba(185,28,28,.05) 0%, transparent 55%);
+        }
+        .wrap { width: 100%; max-width: 400px; }
+        .brand { text-align: center; margin-bottom: 24px; animation: up .4s ease; }
+        .brand img { width: 68px; height: 68px; border-radius: 16px; border: 2px solid #cbd5e1; margin-bottom: 12px; box-shadow: 0 4px 16px rgba(30,58,138,.15); }
+        .brand h1 { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: var(--brand-navy); }
+        .brand p { font-size: 12px; color: var(--fs); font-weight: 600; margin-top: 4px; }
+        .card { background: var(--card); border: 1.5px solid var(--bdr); border-radius: 20px; padding: 26px 22px; box-shadow: 0 12px 32px -4px rgba(0,0,0,.08); animation: up .4s ease .05s both; }
+        .tabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 20px; background: #f1f5f9; padding: 5px; border-radius: 12px; border: 1px solid var(--bdr); }
+        .tab { padding: 9px 4px; border: none; border-radius: 9px; background: transparent; color: var(--fs); font-size: 11px; font-weight: 700; font-family: var(--sans); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all .2s; }
+        .tab i { font-size: 15px; }
+        .tab.on { background: #ffffff; color: var(--fp); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+        .tab[data-role="admin"].on { color: var(--brand-navy); }
+        .tab[data-role="cashier"].on { color: #0284c7; }
+        .tab[data-role="waiter"].on { color: var(--brand-emerald); }
+        .pdots { margin-bottom: 18px; text-align: center; }
+        .plabel { font-size: 12px; font-weight: 700; color: var(--fs); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 10px; }
+        .dots { display: flex; gap: 12px; justify-content: center; min-height: 18px; }
+        .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #cbd5e1; background: transparent; transition: all .15s; }
+        .dot.on { background: var(--brand-navy); border-color: var(--brand-navy); box-shadow: 0 0 8px rgba(30,58,138,.3); transform: scale(1.1); }
+        .dot.err { background: #ef4444; border-color: #ef4444; }
+        .kp { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+        .k { background: var(--surf); border: 1.5px solid var(--bdr); border-radius: 12px; color: var(--fp); font-size: 20px; font-weight: 700; font-family: var(--mono); height: 56px; cursor: pointer; transition: all .12s; display: flex; align-items: center; justify-content: center; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+        .k:hover { background: #e2e8f0; border-color: #cbd5e1; }
+        .k:active, .k.key-active { transform: scale(.94); background: var(--brand-navy); color: #fff; border-color: var(--brand-navy); }
+        .kcl { font-size: 12px; font-family: var(--sans); color: var(--fs); }
+        .kbk { color: var(--brand-crimson); }
+        .btn-go { width: 100%; height: 50px; background: linear-gradient(135deg, #1e3a8a, #2563eb); border: none; border-radius: 13px; color: #fff; font-size: 15px; font-weight: 800; font-family: var(--sans); cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(30,58,138,.25); }
+        .btn-go:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(30,58,138,.35); }
+        .btn-go:disabled { opacity: .4; cursor: not-allowed; }
+        .msg { text-align: center; font-size: 13px; font-weight: 700; margin-top: 12px; padding: 10px; border-radius: 10px; display: none; }
+        .msg.err { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .msg.ok { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        @keyframes up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .quick-hint { font-size: 11px; text-align: center; margin-top: 14px; color: var(--fm); }
+        @media (max-width: 768px) {
+            #role-tabs { display: none !important; }
+            body { padding: 12px; }
+            .card { padding: 22px 18px; border-radius: 18px; }
+            .k { height: 54px; font-size: 22px; }
+            .btn-go { height: 52px; font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="brand">
+        <img src="/static/logo.png" alt="Hotel Mitraya Logo">
+        <h1>HOTEL MITRAYA</h1>
+        <p>Pure Veg Restaurant &amp; Billing Suite</p>
+    </div>
+    <div class="card">
+        <div class="tabs" id="role-tabs">
+            <button type="button" class="tab on" data-role="cashier">
+                <i class="fa-solid fa-cash-register"></i>
+                <span>Cashier</span>
+            </button>
+            <button type="button" class="tab" data-role="waiter">
+                <i class="fa-solid fa-mobile-screen"></i>
+                <span>Waiter</span>
+            </button>
+            <button type="button" class="tab" data-role="admin">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Admin</span>
+            </button>
+        </div>
+        <div class="pdots">
+            <div class="plabel" id="pin-label">Enter Cashier PIN</div>
+            <div class="dots" id="dots">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+        </div>
+        <div class="kp" id="keypad">
+            <button type="button" class="k" data-n="1">1</button>
+            <button type="button" class="k" data-n="2">2</button>
+            <button type="button" class="k" data-n="3">3</button>
+            <button type="button" class="k" data-n="4">4</button>
+            <button type="button" class="k" data-n="5">5</button>
+            <button type="button" class="k" data-n="6">6</button>
+            <button type="button" class="k" data-n="7">7</button>
+            <button type="button" class="k" data-n="8">8</button>
+            <button type="button" class="k" data-n="9">9</button>
+            <button type="button" class="k kcl" id="k-cl">Clear</button>
+            <button type="button" class="k" data-n="0">0</button>
+            <button type="button" class="k kbk" id="k-bk"><i class="fa-solid fa-delete-left"></i></button>
+        </div>
+        <button type="button" class="btn-go" id="btn-login" disabled>
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+            <span id="btn-text">Unlock Counter</span>
+        </button>
+        <div class="msg" id="msg"></div>
+        <div class="quick-hint">
+            <span>Hotel Mitraya • Pure Veg Restaurant POS Suite</span>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    const urlParams = new URLSearchParams(window.location.search);
+    const isMobileDevice = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.matchMedia('(display-mode: standalone)').matches;
+    const isWaiterOnlyMode = (urlParams.get('mode') === 'waiter' || isMobileDevice) && urlParams.get('mode') !== 'desktop';
+
+    let role = isWaiterOnlyMode ? 'waiter' : (urlParams.get('role') || 'cashier');
+    let pin = '';
+    const dots = document.querySelectorAll('.dot');
+    const msg = document.getElementById('msg');
+    const btnLogin = document.getElementById('btn-login');
+    const btnText = document.getElementById('btn-text');
+    const pinLabel = document.getElementById('pin-label');
+    const tabs = document.querySelectorAll('.tab');
+    const roleTabsContainer = document.getElementById('role-tabs');
+
+    if (isWaiterOnlyMode && roleTabsContainer) {
+        // On Mobile App: Only show Waiter login (hide Admin & Cashier tabs)
+        roleTabsContainer.style.display = 'none';
+        role = 'waiter';
+        pinLabel.textContent = 'Enter Waiter PIN';
+        btnText.textContent = 'Open Waiter App';
+    } else {
+        // Desktop / Counter view
+        tabs.forEach(t => {
+            if (t.dataset.role === role) t.classList.add('on');
+            else t.classList.remove('on');
+        });
+        pinLabel.textContent = `Enter ${role.charAt(0).toUpperCase() + role.slice(1)} PIN`;
+        btnText.textContent = role === 'admin' ? 'Enter Admin Panel' : (role === 'waiter' ? 'Open Waiter App' : 'Unlock Counter');
+    }
+
+    function syncUI() {
+        dots.forEach((d, i) => {
+            d.className = 'dot' + (i < pin.length ? ' on' : '');
+        });
+        btnLogin.disabled = pin.length < 4;
+    }
+
+    tabs.forEach(t => {
+        t.addEventListener('click', () => {
+            tabs.forEach(x => x.classList.remove('on'));
+            t.classList.add('on');
+            role = t.dataset.role;
+            pin = '';
+            pinLabel.textContent = `Enter ${role.charAt(0).toUpperCase() + role.slice(1)} PIN`;
+            btnText.textContent = role === 'admin' ? 'Enter Admin Panel' : (role === 'waiter' ? 'Open Waiter App' : 'Unlock Counter');
+            hideMsg();
+            syncUI();
+        });
+    });
+
+    document.querySelectorAll('.k[data-n]').forEach(k => {
+        k.addEventListener('click', () => {
+            if (pin.length < 8) {
+                pin += k.dataset.n;
+                syncUI();
+                if (pin.length === 4) doLogin();
+            }
+        });
+    });
+
+    document.getElementById('k-cl').addEventListener('click', () => { pin = ''; syncUI(); hideMsg(); });
+    document.getElementById('k-bk').addEventListener('click', () => { pin = pin.slice(0, -1); syncUI(); hideMsg(); });
+
+    // Keyboard & Numpad listener
+    document.addEventListener('keydown', e => {
+        let char = null;
+        if (e.key >= '0' && e.key <= '9') {
+            char = e.key;
+        } else if (e.code && e.code.startsWith('Numpad') && e.code.length === 7) {
+            const num = e.code.slice(6);
+            if (num >= '0' && num <= '9') char = num;
+        }
+
+        if (char !== null) {
+            if (pin.length < 8) {
+                pin += char;
+                syncUI();
+                // Visual feedback on matching button
+                const btn = document.querySelector(`.k[data-n="${char}"]`);
+                if (btn) {
+                    btn.classList.add('key-active');
+                    setTimeout(() => btn.classList.remove('key-active'), 120);
+                }
+                if (pin.length === 4) doLogin();
+            }
+        } else if (e.key === 'Backspace' || e.code === 'Backspace') {
+            pin = pin.slice(0, -1);
+            syncUI();
+            hideMsg();
+            const btn = document.getElementById('k-bk');
+            if (btn) {
+                btn.classList.add('key-active');
+                setTimeout(() => btn.classList.remove('key-active'), 120);
+            }
+        } else if (e.key === 'Escape' || e.key === 'Delete' || e.code === 'Delete') {
+            pin = '';
+            syncUI();
+            hideMsg();
+            const btn = document.getElementById('k-cl');
+            if (btn) {
+                btn.classList.add('key-active');
+                setTimeout(() => btn.classList.remove('key-active'), 120);
+            }
+        } else if (e.key === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Enter') {
+            if (pin.length >= 4) {
+                doLogin();
+            }
+        }
+    });
+
+    // Auto focus window for instant keypad entry
+    window.addEventListener('load', () => {
+        window.focus();
+    });
+
+    btnLogin.addEventListener('click', doLogin);
+
+    async function doLogin() {
+        if (pin.length < 4) return;
+        btnLogin.disabled = true;
+        btnText.textContent = 'Verifying...';
+        hideMsg();
+
+        try {
+            const r = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role, pin })
+            });
+            const d = await r.json();
+
+            if (d.success) {
+                showMsg(d.message || 'Access granted!', 'ok');
+                dots.forEach(dot => dot.classList.add('on'));
+                setTimeout(() => {
+                    window.location.replace(d.redirect || (role === 'admin' ? '/admin' : (role === 'waiter' ? '/waiter' : '/pos')));
+                }, 350);
+            } else {
+                showMsg(d.error || 'Incorrect PIN. Please try again.', 'err');
+                dots.forEach(dot => dot.className = 'dot err');
+                setTimeout(() => { pin = ''; syncUI(); }, 600);
+            }
+        } catch(err) {
+            showMsg('Connection error: ' + err.message, 'err');
+            pin = ''; syncUI();
+        } finally {
+            btnLogin.disabled = pin.length < 4;
+            btnText.textContent = role === 'admin' ? 'Enter Admin Panel' : (role === 'waiter' ? 'Open Waiter App' : 'Unlock Counter');
+        }
+    }
+
+    function showMsg(t, type) { msg.textContent = t; msg.className = 'msg ' + type; msg.style.display = 'block'; }
+    function hideMsg() { msg.style.display = 'none'; }
+})();
+</script>
+</body>
+</html>

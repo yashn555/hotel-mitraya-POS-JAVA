@@ -14,3 +14,19 @@ mitraya_pos.db
 .env
 .DS_Store
 Thumbs.db
+
+# Java & Gradle
+.gradle/
+build/
+target/
+*.class
+
+# Android
+.idea/
+*.iml
+.cxx/
+local.properties
+captures/
+.externalNativeBuild
+.cxx
+

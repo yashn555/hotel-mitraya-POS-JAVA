@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Billing Counter POS — Hotel Mitraya</title>
+
+    <!-- Meta tags for mobile web app -->
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- PWA Web App Manifest & App Icons -->
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/logo.png">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- POS & Receipt Stylesheets -->
+    <link rel="stylesheet" href="/static/pos.css?v=4.0">
+    <link rel="stylesheet" href="/static/receipt.css?v=4.0">
+    <script src="/static/pwa.js"></script>
+</head>
+
+<body>
+
+    <!-- Top Header Navigation -->
+    <header class="pos-header">
+        <div class="pos-header-inner">
+            <a href="/pos" class="brand-section">
+                <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="brand-logo-img">
+                <div class="brand-info">
+                    <h1>HOTEL MITRAYA</h1>
+                    <span class="brand-tag"><i class="fa-solid fa-cash-register"></i> Billing Counter</span>
+                </div>
+            </a>
+
+            <!-- Keyboard shortcut hint bar on desktop -->
+            <div class="desktop-shortcut-bar hide-on-mobile">
+                <span class="shortcut-item"><kbd>F2</kbd> Search</span>
+                <span class="shortcut-item"><kbd>F4</kbd> Cash</span>
+                <span class="shortcut-item"><kbd>Alt+1/2/3</kbd> Mode</span>
+                <span class="shortcut-item"><kbd>Ctrl+↵</kbd> Print</span>
+                <span class="shortcut-item"><kbd>F10</kbd> Clear</span>
+            </div>
+
+            <div class="header-nav">
+                <!-- Kitchen Screen Button -->
+                <a href="/kitchen" target="_blank" class="btn-header" style="border-color: rgba(245, 158, 11, 0.4);" title="Open Kitchen Display Screen">
+                    <i class="fa-solid fa-fire-burner" style="color: #fbbf24;"></i>
+                    <span class="hide-on-mobile" style="color: #fbbf24;">Kitchen</span>
+                </a>
+
+                <!-- Thermal Printer Status Badge (Auto-scans on load) -->
+                <button type="button" class="printer-status-badge scanning" id="btn-printer-status-badge" title="Click to open Printer Control Center">
+                    <span class="pulse-dot" id="printer-status-dot"></span>
+                    <i class="fa-solid fa-print"></i>
+                    <span id="printer-status-text">Scanning Printer...</span>
+                    <span class="connect-hint-pill" id="printer-connect-hint" style="display: none;">Connect</span>
+                </button>
+
+                <!-- Recent Bills Drawer Button -->
+                <button type="button" class="btn-header" id="btn-open-recent-bills" title="View Recent Bills">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span class="hide-on-mobile">Recent Bills</span>
+                </button>
+
+                {% if user_role == 'admin' %}
+                <a href="/admin" class="btn-header" title="Admin Dashboard">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span class="hide-on-mobile">Admin</span>
+                </a>
+                <a href="/bulk" class="btn-header" title="Bulk / PDF Billing" target="_blank">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <span class="hide-on-mobile">Bulk</span>
+                </a>
+                {% endif %}
+
+                <!-- Logout / Lock -->
+                <button type="button" class="btn-header btn-danger" id="btn-logout" title="Lock System / Logout">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main POS Layout -->
+    <main class="pos-layout">
+
+        <!-- Left Column: Menu Catalog & Items OR 12 Dining Floor Tables -->
+        <section class="catalog-pane" id="catalog-pane-section">
+
+            <!-- Mode Switcher Bar (Walk-in vs Dining Tables) -->
+            <div class="mode-switch-bar">
+                <div class="mode-tabs-group">
+                    <button type="button" class="mode-tab-btn active" id="tab-mode-walkin" data-mode="WALK_IN">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Walk-in Quick Billing</span>
+                    </button>
+                    <button type="button" class="mode-tab-btn" id="tab-mode-dining" data-mode="DINING">
+                        <i class="fa-solid fa-chair"></i>
+                        <span>Dining Tables (1-12)</span>
+                        <span class="badge-counter" id="active-tables-badge" style="display: none;">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW A: Walk-in Item Catalog (Active when WALK_IN is selected) -->
+            <div id="walkin-catalog-container" style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 380px;">
+                <!-- Search & Filters -->
+                <div class="catalog-search-bar">
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="item-search-input" class="search-input"
+                            placeholder="Search dishes (Press 'F2' or '/' to focus)..." autocomplete="off">
+                        <span class="search-kbd-hint hide-on-mobile"><kbd>F2</kbd></span>
+                    </div>
+                </div>
+
+                <!-- Categories Horizontal Bar -->
+                <div class="category-pills-container" id="category-pills-bar">
+                    <button type="button" class="category-pill active" data-cat-id="all">All Items</button>
+                </div>
+
+                <!-- Food Items Grid (Large touch cards) -->
+                <div class="menu-grid-scroll">
+                    <div class="menu-grid" id="menu-items-grid">
+                        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                            <p style="margin-top: 10px;">Loading Hotel Mitraya menu...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW B: Dining Tables Floor Grid (Active when DINING is selected) -->
+            <div id="dining-floor-container" class="dining-floor-view" style="display: none;">
+                <div class="dining-floor-header">
+                    <h2><i class="fa-solid fa-table-cells" style="color: #38bdf8;"></i> Restaurant Floor (Tables 1 - 12)</h2>
+                    <div class="dining-legend">
+                        <div class="legend-item"><span class="legend-dot vacant"></span> Vacant</div>
+                        <div class="legend-item"><span class="legend-dot occupied"></span> Occupied (Active)</div>
+                        <button type="button" class="btn-header" id="btn-refresh-tables-counter" style="padding: 4px 10px; font-size: 11px;">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 12 Large Table Cards Grid -->
+                <div class="tables-grid-large" id="counter-tables-grid">
+                    <!-- Injected via JavaScript -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Column: Dual Counter Billing & Settlement Pane -->
+        <section class="cart-pane" id="pos-cart-pane">
+
+            <!-- Cart Header -->
+            <div class="cart-header">
+                <div class="cart-title-group">
+                    <i class="fa-solid fa-receipt" style="color: #38bdf8;"></i>
+                    <h2 id="current-cart-title">Walk-in Order</h2>
+                    <span class="cart-items-count-badge" id="cart-count-badge">0 items</span>
+                </div>
+                <button type="button" class="btn-clear-cart" id="btn-clear-cart" title="Clear all items (F10)">
+                    <i class="fa-solid fa-trash-can"></i> <span>Clear</span> <kbd class="hide-on-mobile">F10</kbd>
+                </button>
+            </div>
+
+            <!-- Cart Items Scroll List -->
+            <div class="cart-items-scroll" id="cart-items-list">
+                <div class="cart-empty-state">
+                    <i class="fa-solid fa-utensils"></i>
+                    <p>No dishes added yet.<br><small>Click on any dish card to add to order.</small></p>
+                </div>
+            </div>
+
+            <!-- Financials & Payment Settlement Footer -->
+            <div class="cart-footer">
+                <div class="calc-row">
+                    <span>Subtotal:</span>
+                    <span class="val" id="cart-subtotal">₹0.00</span>
+                </div>
+
+                <div class="calc-row discount-row">
+                    <span>Discount (₹): <kbd class="hide-on-mobile">F7</kbd></span>
+                    <input type="number" id="cart-discount-input" min="0" value="0" placeholder="0">
+                </div>
+
+                <div class="calc-row net-total-row">
+                    <span>Net Payable:</span>
+                    <span class="val" id="cart-net-total">₹0.00</span>
+                </div>
+
+                <!-- Payment Mode Selector -->
+                <div class="payment-mode-tabs">
+                    <button type="button" class="pm-tab-btn active" data-mode="CASH" title="Cash (Alt+1)">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                        <span>CASH</span>
+                    </button>
+                    <button type="button" class="pm-tab-btn" data-mode="UPI" title="UPI / QR (Alt+2)">
+                        <i class="fa-solid fa-qrcode"></i>
+                        <span>UPI / QR</span>
+                    </button>
+                    <button type="button" class="pm-tab-btn" data-mode="CARD" title="Card (Alt+3)">
+                        <i class="fa-solid fa-credit-card"></i>
+                        <span>CARD</span>
+                    </button>
+                </div>
+
+                <!-- Fast Cash Tender Helper -->
+                <div class="cash-tender-box" id="cash-tender-container">
+                    <div class="tender-quick-buttons">
+                        <button type="button" class="quick-cash-btn" id="btn-exact-cash">Exact</button>
+                        <button type="button" class="quick-cash-btn" data-val="50">₹50</button>
+                        <button type="button" class="quick-cash-btn" data-val="100">₹100</button>
+                        <button type="button" class="quick-cash-btn" data-val="200">₹200</button>
+                        <button type="button" class="quick-cash-btn" data-val="500">₹500</button>
+                    </div>
+                    <div class="tender-inputs-row">
+                        <div style="position: relative; flex: 1;">
+                            <input type="number" id="cash-received-input" class="tender-input-field"
+                                placeholder="Cash Received (F4)">
+                        </div>
+                        <div class="change-display-badge" id="change-display">Change: ₹0.00</div>
+                    </div>
+                </div>
+
+                <!-- Action Button: Charge / Settle & Print -->
+                <div class="cart-action-buttons-group">
+                    <button type="button" class="btn-checkout-main" id="btn-checkout-order" title="Charge & Instant Print (Ctrl+Enter)">
+                        <i class="fa-solid fa-print"></i>
+                        <span id="btn-checkout-text">Charge ₹0.00 &amp; Print Bill</span>
+                        <kbd class="hide-on-mobile">Ctrl+↵</kbd>
+                    </button>
+
+                    <button type="button" class="btn-checkout-main dining-settle" id="btn-settle-table-tab" style="display: none;" title="Settle Table & Print Bill">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span id="btn-settle-tab-text">Settle Table &amp; Print Bill</span>
+                        <kbd class="hide-on-mobile">Ctrl+↵</kbd>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ─── PRINTER CONTROL CENTER MODAL ────────────────────────────────────── -->
+    <div class="modal-overlay" id="printer-control-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-print" style="color: #38bdf8;"></i> Thermal Printer Control Center</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-printer-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Status Banner -->
+                <div class="printer-config-card" id="printer-modal-status-card" style="border-left: 4px solid var(--brand-accent);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 800;">Current Hardware Status</span>
+                            <h4 id="printer-modal-device-name" style="font-size: 15px; color: #ffffff; margin-top: 2px;">Scanning...</h4>
+                        </div>
+                        <span class="table-status-pill occupied" id="printer-modal-status-pill">Checking</span>
+                    </div>
+                </div>
+
+                <!-- Paper Width Selector -->
+                <div class="form-group-printer">
+                    <label><i class="fa-solid fa-receipt"></i> Thermal Receipt Paper Width</label>
+                    <div class="paper-width-tabs">
+                        <button type="button" class="paper-tab-btn active" data-width="80" id="btn-paper-80">
+                            80mm (Standard / 42 cols)
+                        </button>
+                        <button type="button" class="paper-tab-btn" data-width="58" id="btn-paper-58">
+                            58mm (Compact / 32 cols)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Detected System Printers (Wired / USB / Windows Spooler) -->
+                <div class="form-group-printer">
+                    <label for="system-printers-select"><i class="fa-solid fa-desktop"></i> Installed System / USB Thermal Printer</label>
+                    <select id="system-printers-select" class="printer-select">
+                        <option value="">Detecting printers...</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+                    <button type="button" class="btn-header" id="btn-bt-scan-connect" style="justify-content: center; background: #2563eb;">
+                        <i class="fa-brands fa-bluetooth"></i> Bluetooth Scan
+                    </button>
+                    <button type="button" class="btn-header" id="btn-print-welcome-slip" style="justify-content: center; background: #059669;">
+                        <i class="fa-solid fa-star"></i> Print Welcome Slip
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                    <button type="button" class="btn-header" id="btn-print-test-slip" style="justify-content: center;">
+                        <i class="fa-solid fa-file-invoice"></i> Print Test Receipt
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-header" id="btn-dismiss-printer-modal">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── THERMAL RECEIPT MODAL & PREVIEW ─────────────────────────────────── -->
+    <div class="modal-overlay" id="receipt-modal">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-receipt"></i> Bill Receipt Preview</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-receipt-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="background: #e2e8f0; display: flex; justify-content: center; padding: 15px; max-height: 60vh; overflow-y: auto;">
+                <div id="receipt-print-area" class="receipt-container">
+                    <div class="receipt-header">
+                        <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="receipt-logo">
+                        <div class="receipt-title">HOTEL MITRAYA</div>
+                        <div class="receipt-subtitle">Pure Veg Restaurant &amp; Caterers</div>
+                        <div class="receipt-meta">Dharmaraj chowk Nr. Honda Showroom, Akurdi, Pune - 411035</div>
+                        <div class="receipt-meta">Ph: +91 9158691003</div>
+                        <div class="receipt-meta" style="font-weight: 700;">FSSAI Lic No: 21525037001433</div>
+                    </div>
+
+                    <div class="receipt-info-row bold" style="font-weight: 800; font-size: 13px;">
+                        <span id="rcpt-table-no">TABLE: Walk-in</span>
+                        <span id="rcpt-bill-no">Bill: POS-000001</span>
+                    </div>
+                    <div class="receipt-info-row">
+                        <span id="rcpt-date">--/--/---- --:-- PM</span>
+                        <span id="rcpt-cashier">Cashier: Staff</span>
+                    </div>
+                    <div class="receipt-info-row">
+                        <span id="rcpt-mode">Mode: CASH</span>
+                        <span id="rcpt-order-type">Type: WALK-IN</span>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <table class="receipt-table">
+                        <thead>
+                            <tr>
+                                <th class="col-item">Item</th>
+                                <th class="col-qty">Qty</th>
+                                <th class="col-rate">Rate</th>
+                                <th class="col-amt">Amt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rcpt-items-body">
+                            <!-- Injected -->
+                        </tbody>
+                    </table>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="receipt-summary">
+                        <div class="receipt-summary-row">
+                            <span>Sub Total:</span>
+                            <span id="rcpt-subtotal">₹0.00</span>
+                        </div>
+                        <div class="receipt-summary-row" id="rcpt-discount-row">
+                            <span>Discount:</span>
+                            <span id="rcpt-discount">-₹0.00</span>
+                        </div>
+                        <div class="receipt-divider-solid"></div>
+                        <div class="receipt-summary-row grand-total">
+                            <span>TOTAL AMOUNT:</span>
+                            <span id="rcpt-total">₹0.00</span>
+                        </div>
+                        <div class="receipt-divider-solid"></div>
+                        <div class="receipt-summary-row" id="rcpt-tender-row">
+                            <span>Cash Tendered:</span>
+                            <span id="rcpt-tendered">₹0.00</span>
+                        </div>
+                        <div class="receipt-summary-row" id="rcpt-change-row">
+                            <span>Change Due:</span>
+                            <span id="rcpt-change">₹0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-barcode">* <span id="rcpt-barcode-text">POS-000001</span> *</div>
+
+                    <div class="receipt-footer">
+                        Thank You! Visit Again.<br>
+                        Have a Delicious Day!
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="gap: 8px;">
+                <button type="button" class="btn-header" id="btn-dismiss-receipt">Close</button>
+                <button type="button" class="btn-header" id="btn-bt-direct-print" style="background: #2563eb;">
+                    <i class="fa-brands fa-bluetooth"></i> Print (BT)
+                </button>
+                <button type="button" class="btn-header" id="btn-print-receipt" style="background: #059669;">
+                    <i class="fa-solid fa-print"></i> Print (Browser/PDF)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── RECENT BILLS DRAWER ─────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="recent-bills-modal">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> Today's Completed Bills</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-recent-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 12px;">
+                <div id="recent-bills-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Injected via JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-header" id="btn-dismiss-recent-modal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="pos-toast-container" id="toast-container"></div>
+
+    <script src="/static/bt_print.js?v=4.0"></script>
+    <script src="/static/pos.js?v=4.0"></script>
+</body>
+
+</html>

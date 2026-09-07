@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <!-- Red Non-Veg Border Box -->
+    <path
+        android:strokeColor="#B91C1C"
+        android:strokeWidth="1.5"
+        android:pathData="M2,2 h12 v12 h-12 z" />
+    <!-- Red Non-Veg Triangle -->
+    <path
+        android:fillColor="#B91C1C"
+        android:pathData="M8,4 L12,12 L4,12 Z" />
+</vector>

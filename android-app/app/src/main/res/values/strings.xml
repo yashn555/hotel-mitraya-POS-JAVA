@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">Hotel Mitraya POS</string>
+    <string name="hotel_title">HOTEL MITRAYA</string>
+    <string name="hotel_subtitle">Pure Veg Restaurant &amp; Fast Food</string>
+    
+    <!-- Auth -->
+    <string name="security_pin_title">Enter Security PIN</string>
+    <string name="role_admin">Admin</string>
+    <string name="role_cashier">Cashier</string>
+    <string name="role_waiter">Waiter</string>
+    <string name="unlock_access">Unlock Terminal</string>
+    
+    <!-- Waiter -->
+    <string name="dining_tables_title">Dining Tables (1 to 12)</string>
+    <string name="status_vacant">VACANT</string>
+    <string name="status_occupied">OCCUPIED</string>
+    <string name="take_order">Take Order</string>
+    <string name="edit_order">Edit Order</string>
+    <string name="send_kot">Send KOT / Place Order</string>
+    <string name="search_dish_hint">Search menu dishes...</string>
+    <string name="cooking_notes_hint">Cooking notes (e.g., Less spicy, No onion)...</string>
+    
+    <!-- Cashier POS -->
+    <string name="pos_counter_title">Billing Counter POS</string>
+    <string name="walk_in_billing">Walk-in Billing</string>
+    <string name="dining_tables_settle">Dining Settle</string>
+    <string name="subtotal_label">Subtotal</string>
+    <string name="discount_label">Discount (₹)</string>
+    <string name="grand_total_label">Grand Total</string>
+    <string name="received_amount_label">Cash Received (₹)</string>
+    <string name="change_return_label">Change Return (₹)</string>
+    <string name="generate_and_print">Generate Bill &amp; Print</string>
+    <string name="settle_and_print">Settle Tab &amp; Print</string>
+    
+    <!-- Kitchen -->
+    <string name="kds_title">Kitchen Display Screen (KOT)</string>
+    <string name="mark_ready">Mark Ready</string>
+    <string name="mark_preparing">Preparing</string>
+    
+    <!-- Settings -->
+    <string name="server_settings">Server Configuration</string>
+    <string name="printer_settings">Thermal Printer Settings</string>
+    <string name="server_url_hint">http://192.168.1.100:5055</string>
+    <string name="save_config">Save Configuration</string>
+    <string name="test_connection">Test Connection</string>
+</resources>

@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/bg_surface"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- Dialog Header -->
+    <TextView
+        android:id="@+id/tvSettleTableTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:text="Settle Table 1"
+        android:textColor="@color/brand_navy"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/tvSettleOrderNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Order #ORD-20260906-001"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp" />
+
+    <!-- Items List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSettleItems"
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_input_field"
+        android:padding="8dp" />
+
+    <!-- Totals & Settle Breakdown -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Subtotal:"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvSettleSubtotal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-bold"
+                android:text="₹380.00"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Discount (₹):"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+            <EditText
+                android:id="@+id/etSettleDiscount"
+                android:layout_width="110dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_input_field"
+                android:gravity="end"
+                android:hint="0"
+                android:inputType="numberDecimal"
+                android:paddingHorizontal="10dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_muted"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-bold"
+                android:text="GRAND TOTAL:"
+                android:textColor="@color/brand_navy"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvSettleGrandTotal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-black"
+                android:text="₹380.00"
+                android:textColor="@color/brand_navy"
+                android:textSize="20sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Payment Mode Selector -->
+    <RadioGroup
+        android:id="@+id/rgSettlePayMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/rbSettleCash"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:buttonTint="@color/brand_emerald"
+            android:checked="true"
+            android:text="Cash"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
+
+        <RadioButton
+            android:id="@+id/rbSettleUpi"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:buttonTint="@color/brand_accent"
+            android:text="UPI"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
+
+        <RadioButton
+            android:id="@+id/rbSettleCard"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:buttonTint="@color/brand_purple"
+            android:text="Card"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
+    </RadioGroup>
+
+    <!-- Cash Received & Change Return -->
+    <LinearLayout
+        android:id="@+id/layoutSettleCashFields"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/etSettleReceived"
+            android:layout_width="140dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_input_field"
+            android:hint="Cash Received ₹"
+            android:inputType="numberDecimal"
+            android:paddingHorizontal="10dp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tvSettleChange"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="Change: ₹0.00"
+            android:textColor="@color/brand_emerald"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Action Buttons (Cancel / Settle & Print) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnCancelSettle"
+            style="@style/Widget.HotelMitraya.Button.Outline"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:text="Cancel"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnConfirmSettlePrint"
+            style="@style/Widget.HotelMitraya.Button.Primary"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:layout_weight="1.5"
+            android:text="@string/settle_and_print"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+</LinearLayout>

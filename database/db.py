@@ -7,6 +7,7 @@ Includes non-destructive automatic schema migration, initial seed data, and audi
 
 import os
 from contextlib import contextmanager
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from werkzeug.security import generate_password_hash
@@ -16,6 +17,7 @@ from database.models import (
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Database URL configuration (PostgreSQL in production, SQLite locally)
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -28,9 +30,14 @@ if not DATABASE_URL:
         db_path = os.path.join(BASE_DIR, "mitraya_pos.db")
     DATABASE_URL = f"sqlite:///{db_path}"
 
-# Fix postgres:// URL prefix if provided by older Heroku/Render configs
+# Fix postgres:// URL prefix and query params for compatibility
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+if "channel_binding=" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("&channel_binding=require", "").replace("?channel_binding=require", "?").replace("channel_binding=require", "")
+    if DATABASE_URL.endswith("?"):
+        DATABASE_URL = DATABASE_URL[:-1]
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
@@ -238,7 +245,7 @@ def seed_default_data(session):
 def auto_migrate_columns():
     """Ensure newly added columns exist in SQLite/Postgres without manual drop table or data loss."""
     try:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             # Check SQLite table info
             if engine.dialect.name == "sqlite":
                 # PosBills columns check
@@ -264,8 +271,6 @@ def auto_migrate_columns():
                         conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
                     if "updated_at" not in user_cols:
                         conn.execute(text("ALTER TABLE users ADD COLUMN updated_at DATETIME"))
-                
-                conn.commit()
             else:
                 # PostgreSQL / MySQL
                 for col_sql in [
@@ -279,7 +284,6 @@ def auto_migrate_columns():
                 ]:
                     try:
                         conn.execute(text(col_sql))
-                        conn.commit()
                     except Exception:
                         pass
     except Exception as e:

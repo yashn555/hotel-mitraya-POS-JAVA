@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Web Theme Matched Palette -->
+    <color name="bg_main">#F0F4F9</color>
+    <color name="bg_surface">#FFFFFF</color>
+    <color name="bg_card">#FFFFFF</color>
+    <color name="bg_card_hover">#F8FAFC</color>
+    <color name="bg_card_active">#EFF6FF</color>
+    
+    <color name="card_border">#E2E8F0</color>
+    <color name="border_subtle">#CBD5E1</color>
+    <color name="border_glow">#332563EB</color>
+
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#334155</color>
+    <color name="text_muted">#64748B</color>
+    <color name="text_white">#FFFFFF</color>
+
+    <!-- Brand Colors -->
+    <color name="brand_navy">#1E3A8A</color>
+    <color name="brand_navy_dark">#172554</color>
+    <color name="brand_navy_light">#DBEAFE</color>
+
+    <color name="brand_crimson">#B91C1C</color>
+    <color name="brand_crimson_hover">#991B1B</color>
+    <color name="brand_crimson_light">#FEE2E2</color>
+
+    <color name="brand_emerald">#059669</color>
+    <color name="brand_emerald_hover">#047857</color>
+    <color name="brand_emerald_light">#D1FAE5</color>
+
+    <color name="brand_accent">#2563EB</color>
+    <color name="brand_accent_hover">#1D4ED8</color>
+    <color name="brand_gold">#D97706</color>
+    <color name="brand_gold_light">#FEF3C7</color>
+    <color name="brand_blue">#0284C7</color>
+    <color name="brand_purple">#7C3AED</color>
+
+    <!-- Compatibility Aliases -->
+    <color name="primary_amber">#2563EB</color>
+    <color name="primary_amber_dark">#1E3A8A</color>
+    <color name="primary_amber_light">#DBEAFE</color>
+    <color name="amber_glow">#332563EB</color>
+
+    <color name="bg_slate_900">#F0F4F9</color>
+    <color name="card_slate_800">#FFFFFF</color>
+    <color name="card_slate_700">#F8FAFC</color>
+    <color name="border_slate_600">#E2E8F0</color>
+    <color name="text_amber">#1E3A8A</color>
+
+    <!-- Status -->
+    <color name="status_vacant">#059669</color>
+    <color name="status_vacant_bg">#D1FAE5</color>
+    <color name="status_occupied">#B91C1C</color>
+    <color name="status_occupied_bg">#FEE2E2</color>
+    <color name="status_preparing">#0284C7</color>
+    <color name="status_ready">#7C3AED</color>
+
+    <!-- Payment Badges -->
+    <color name="pay_cash">#059669</color>
+    <color name="pay_upi">#2563EB</color>
+    <color name="pay_card">#7C3AED</color>
+
+    <!-- Base -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+</resources>

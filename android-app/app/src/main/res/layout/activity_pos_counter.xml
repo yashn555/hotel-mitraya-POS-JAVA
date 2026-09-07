@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_main">
+
+    <!-- Top POS Header -->
+    <LinearLayout
+        android:id="@+id/layoutPosHeader"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="@color/bg_surface"
+        android:elevation="3dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginEnd="10dp"
+            android:src="@drawable/logo_mitraya"
+            android:contentDescription="Hotel Mitraya Logo" />
+
+        <TextView
+            android:id="@+id/tvPosTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-black"
+            android:text="HOTEL MITRAYA POS"
+            android:textColor="@color/brand_navy"
+            android:textSize="17sp" />
+
+        <TextView
+            android:id="@+id/tvCashierName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:text="Cashier: Active"
+            android:textColor="@color/text_muted"
+            android:textSize="13sp" />
+
+        <ImageButton
+            android:id="@+id/btnPosLogout"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_lock_power_off"
+            app:tint="@color/brand_crimson" />
+    </LinearLayout>
+
+    <!-- Navigation Tabs: Walk-in Billing | Dining Settle | Recent Bills -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayoutPos"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@color/bg_surface"
+        app:layout_constraintTop_toBottomOf="@id/layoutPosHeader"
+        app:tabIndicatorColor="@color/brand_navy"
+        app:tabSelectedTextColor="@color/brand_navy"
+        app:tabTextColor="@color/text_secondary">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/walk_in_billing" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dining_tables_settle" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Recent Bills" />
+    </com.google.android.material.tabs.TabLayout>
+
+    <!-- Walk-in View Container -->
+    <LinearLayout
+        android:id="@+id/viewWalkInBilling"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tabLayoutPos">
+
+        <!-- Quick Dish Menu Grid -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvWalkInMenu"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:padding="8dp" />
+
+        <!-- Checkout Bottom Summary Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/bg_surface"
+            android:elevation="12dp"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Customer Name & Payment Mode -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/etCustomerName"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input_field"
+                    android:hint="Customer Name (Optional)"
+                    android:paddingHorizontal="12dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="13sp" />
+
+                <!-- Payment Radio Group (CASH / UPI / CARD) -->
+                <RadioGroup
+                    android:id="@+id/rgPaymentMode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rbCash"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:buttonTint="@color/brand_emerald"
+                        android:checked="true"
+                        android:text="Cash"
+                        android:textColor="@color/text_primary"
+                        android:textSize="12sp" />
+
+                    <RadioButton
+                        android:id="@+id/rbUpi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:buttonTint="@color/brand_accent"
+                        android:text="UPI"
+                        android:textColor="@color/text_primary"
+                        android:textSize="12sp" />
+
+                    <RadioButton
+                        android:id="@+id/rbCard"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:buttonTint="@color/brand_purple"
+                        android:text="Card"
+                        android:textColor="@color/text_primary"
+                        android:textSize="12sp" />
+                </RadioGroup>
+            </LinearLayout>
+
+            <!-- Calculations (Discount / Grand Total) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/etDiscount"
+                    android:layout_width="120dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_input_field"
+                    android:hint="Discount ₹"
+                    android:inputType="numberDecimal"
+                    android:paddingHorizontal="12dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvPosGrandTotal"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="sans-serif-black"
+                    android:gravity="end"
+                    android:text="Grand Total: ₹0.00"
+                    android:textColor="@color/brand_navy"
+                    android:textSize="20sp" />
+            </LinearLayout>
+
+            <!-- Received Cash & Change Display -->
+            <LinearLayout
+                android:id="@+id/layoutCashChange"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/etReceivedAmount"
+                    android:layout_width="140dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_input_field"
+                    android:hint="Cash Received ₹"
+                    android:inputType="numberDecimal"
+                    android:paddingHorizontal="12dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvChangeAmount"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
+                    android:text="Change: ₹0.00"
+                    android:textColor="@color/brand_emerald"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Print & Checkout Button -->
+            <Button
+                android:id="@+id/btnPosCheckout"
+                style="@style/Widget.HotelMitraya.Button.Primary"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/generate_and_print"
+                android:textSize="15sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Dining Settle Tables View Container -->
+    <LinearLayout
+        android:id="@+id/viewDiningSettle"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tabLayoutPos">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvDiningTablesSettle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- Recent Bills History View Container -->
+    <LinearLayout
+        android:id="@+id/viewRecentBills"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tabLayoutPos">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvRecentBills"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="8dp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hotel Mitraya — Waiter Ordering</title>
+
+    <!-- PWA & Mobile App Meta Tags -->
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Hotel Mitraya Floor Waiter Mobile POS & Ordering System">
+
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <link rel="apple-touch-icon" href="/static/logo.png">
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="/static/pwa.js"></script>
+
+    <style>
+        :root {
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --brand-navy: #1e3a8a;
+            --brand-navy-dark: #172554;
+            --brand-blue: #2563eb;
+            --brand-emerald: #059669;
+            --brand-emerald-dark: #047857;
+            --brand-gold: #f59e0b;
+            --brand-crimson: #dc2626;
+            --text-main: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 12px -2px rgba(30, 58, 138, 0.08);
+            --shadow-lg: 0 10px 25px -5px rgba(30, 58, 138, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding-bottom: 90px;
+            overflow-x: hidden;
+        }
+
+        /* Top Header */
+        .waiter-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid #bfdbfe;
+            padding: 2px;
+            object-fit: contain;
+        }
+
+        .header-title-box h1 {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--brand-navy);
+            letter-spacing: -0.3px;
+            line-height: 1.1;
+        }
+
+        .header-title-box span {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--brand-emerald);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .staff-badge {
+            background: #eff6ff;
+            color: var(--brand-blue);
+            border: 1px solid #bfdbfe;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-logout {
+            background: #fee2e2;
+            color: var(--brand-crimson);
+            border: 1px solid #fecaca;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        /* Top Navigation Tabs */
+        .nav-switch {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 10px 14px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--brand-navy);
+            border-color: var(--brand-navy);
+            color: #ffffff;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .badge-count {
+            background: rgba(255, 255, 255, 0.25);
+            padding: 2px 7px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .tab-btn.active .badge-count {
+            background: #ffffff;
+            color: var(--brand-navy);
+        }
+
+        /* Tables Selector Section */
+        .section-box {
+            padding: 12px 14px;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .section-heading h2 {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tables-scroll-wrap {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .tables-scroll-wrap {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .table-chip {
+            background: #ffffff;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 4px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            transition: all 0.15s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-chip .t-no {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .table-chip .t-status {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--brand-emerald);
+            text-transform: uppercase;
+        }
+
+        .table-chip.selected {
+            background: #eff6ff;
+            border-color: var(--brand-blue);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+        }
+
+        .table-chip.selected .t-no {
+            color: var(--brand-blue);
+        }
+
+        .table-chip.occupied {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+
+        .table-chip.occupied .t-status {
+            color: #d97706;
+        }
+
+        .table-chip.occupied.selected {
+            background: #fef3c7;
+            border-color: var(--brand-gold);
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+        }
+
+        /* Active Table Context Bar */
+        .table-context-bar {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin: 0 14px 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-context-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-context-badge {
+            background: var(--brand-navy);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .btn-edit-active-order {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Search & Menu Categories */
+        .search-box-wrap {
+            padding: 0 14px 10px 14px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px 10px 36px;
+            font-size: 14px;
+            outline: none;
+            color: var(--text-main);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .search-input:focus {
+            border-color: var(--brand-blue);
+        }
+
+        .search-icon-pos {
+            position: absolute;
+            left: 26px;
+            top: 13px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .cat-pills-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 0 14px 10px 14px;
+            scrollbar-width: none;
+        }
+
+        .cat-pills-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .cat-pill {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.15s ease;
+        }
+
+        .cat-pill.active {
+            background: var(--brand-blue);
+            border-color: var(--brand-blue);
+            color: #ffffff;
+        }
+
+        /* Dishes List */
+        .menu-list-wrap {
+            padding: 0 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .menu-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1.25;
+        }
+
+        .item-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 3px;
+        }
+
+        .item-price {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--brand-emerald-dark);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .item-code {
+            font-size: 10px;
+            background: #f1f5f9;
+            color: var(--text-muted);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+
+        .qty-control {
+            display: inline-flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .btn-qty {
+            background: #f1f5f9;
+            color: var(--brand-navy);
+            border: none;
+            width: 32px;
+            height: 32px;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.1s;
+        }
+
+        .btn-qty:active {
+            background: #e2e8f0;
+        }
+
+        .qty-val {
+            min-width: 28px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .btn-add-initial {
+            background: #eff6ff;
+            color: var(--brand-blue);
+            border: 1.5px solid #bfdbfe;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Floating Bottom Cart Bar */
+        .floating-cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 60;
+            background: #ffffff;
+            border-top: 2px solid var(--brand-blue);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .cart-bar-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cart-bar-total {
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--brand-navy);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .cart-bar-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 700;
+        }
+
+        .btn-view-cart {
+            background: var(--brand-blue);
+            color: #ffffff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Modal Sheet */
+        .modal-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(2px);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .modal-sheet {
+            background: #ffffff;
+            width: 100%;
+            max-width: 520px;
+            max-height: 85vh;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: slideUp 0.25s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-sheet-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-sheet-header h3 {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--brand-navy);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-close-btn {
+            background: #f1f5f9;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 18px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-sheet-body {
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .cart-item-row {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .cart-item-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .item-notes-input {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .modal-sheet-footer {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border);
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .modal-total-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .btn-send-kitchen {
+            background: var(--brand-emerald);
+            color: #ffffff;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        .btn-update-order {
+            background: var(--brand-gold);
+            color: #78350f;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Tracker View Cards */
+        .order-card {
+            background: #ffffff;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .order-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 8px;
+        }
+
+        .order-id-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            color: var(--brand-navy);
+            font-size: 13px;
+        }
+
+        .order-card-items {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 42px;
+            opacity: 0.3;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Waiter Top Header -->
+    <header class="waiter-header">
+        <div class="header-brand">
+            <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="header-logo">
+            <div class="header-title-box">
+                <h1>HOTEL MITRAYA</h1>
+                <span><i class="fa-solid fa-utensils"></i> Floor Waiter</span>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <div class="staff-badge">
+                <i class="fa-solid fa-user"></i>
+                <span>{{ user_name }}</span>
+            </div>
+            <a href="/logout" class="btn-logout" title="Logout">
+                <i class="fa-solid fa-power-off"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- Navigation Switch: Take Order vs Active Tables -->
+    <nav class="nav-switch">
+        <button type="button" class="tab-btn active" id="btn-tab-menu">
+            <i class="fa-solid fa-bowl-food"></i>
+            <span>Take Order</span>
+        </button>
+        <button type="button" class="tab-btn" id="btn-tab-tracker">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Active Orders</span>
+            <span class="badge-count" id="active-orders-count-badge" style="display:none;">0</span>
+        </button>
+    </nav>
+
+    <!-- VIEW 1: Take Order / Menu Screen -->
+    <section id="view-menu-section">
+        <!-- Tables Selector -->
+        <div class="section-box">
+            <div class="section-heading">
+                <h2><i class="fa-solid fa-chair" style="color: var(--brand-blue);"></i> Select Table (1 to 12)</h2>
+                <span id="selected-table-label" style="font-size:12px; font-weight:800; color:var(--brand-blue);">Table: T-1</span>
+            </div>
+            <div class="tables-scroll-wrap" id="tables-grid-container">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Active Table Context Notice (Visible if Table is already occupied) -->
+        <div class="table-context-bar" id="active-table-context-bar" style="display: none;">
+            <div class="table-context-info">
+                <span class="table-context-badge" id="ctx-table-badge">Table 1</span>
+                <span style="font-size: 12px; color: #b45309; font-weight: 700;">Currently Occupied</span>
+            </div>
+            <button type="button" class="btn-edit-active-order" id="btn-ctx-edit-order">
+                <i class="fa-solid fa-pen-to-square"></i> Edit Table Order
+            </button>
+        </div>
+
+        <!-- Menu Search Box -->
+        <div class="search-box-wrap" style="position: relative;">
+            <i class="fa-solid fa-magnifying-glass search-icon-pos"></i>
+            <input type="text" id="menu-search-input" class="search-input" placeholder="Search dishes (e.g. Paneer, Roti, Rice)...">
+        </div>
+
+        <!-- Category Pills Bar -->
+        <div class="cat-pills-scroll" id="categories-pill-container">
+            <button type="button" class="cat-pill active" data-cat-id="all">All Dishes</button>
+        </div>
+
+        <!-- Menu Dishes List -->
+        <div class="menu-list-wrap" id="menu-items-list">
+            <div class="empty-state">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <p>Loading dishes...</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- VIEW 2: Active Orders Tracker -->
+    <section id="view-tracker-section" style="display: none; padding: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h2 style="font-size: 14px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">
+                <i class="fa-solid fa-utensils" style="color: var(--brand-blue);"></i> Active Dining Tables
+            </h2>
+            <button type="button" id="btn-refresh-orders" style="background:#f1f5f9; border:1px solid var(--border); padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
+                <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+        </div>
+
+        <div id="orders-feed-container">
+            <!-- Active order cards injected via JS -->
+        </div>
+    </section>
+
+    <!-- Floating Bottom Cart Bar -->
+    <div class="floating-cart-bar" id="floating-cart-bar" style="display: none;">
+        <div class="cart-bar-details">
+            <span class="cart-bar-total" id="floating-cart-total">Rs.0.00</span>
+            <span class="cart-bar-count" id="floating-cart-count">0 items selected</span>
+        </div>
+        <button type="button" class="btn-view-cart" id="btn-open-cart-modal">
+            <span>Review &amp; Send</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+
+    <!-- Review & Submit Cart Modal Sheet -->
+    <div class="modal-sheet-overlay" id="cart-modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-sheet-header">
+                <h3 id="modal-table-title"><i class="fa-solid fa-chair"></i> Order for Table 1</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-modal">&times;</button>
+            </div>
+
+            <div class="modal-sheet-body">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label for="order-customer-name" style="font-size:12px; font-weight:700; color:var(--text-secondary);">Customer Name / Ref (Optional):</label>
+                    <input type="text" id="order-customer-name" class="item-notes-input" placeholder="e.g. VIP Guest, Sharma Ji">
+                </div>
+
+                <div style="font-size:12px; font-weight:800; color:var(--text-secondary); text-transform:uppercase; margin-top:6px;">
+                    Dishes in this order:
+                </div>
+
+                <div id="cart-items-review-list" style="display:flex; flex-direction:column; gap:8px;">
+                    <!-- Cart items injected -->
+                </div>
+            </div>
+
+            <div class="modal-sheet-footer">
+                <div class="modal-total-row">
+                    <span>Order Total:</span>
+                    <span id="modal-cart-total" style="color:var(--brand-emerald-dark); font-family:'JetBrains Mono',monospace;">Rs.0.00</span>
+                </div>
+                <button type="button" class="btn-send-kitchen" id="btn-confirm-submit-order">
+                    <i class="fa-solid fa-paper-plane"></i> Send Order to Kitchen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Active Order Modal Sheet -->
+    <div class="modal-sheet-overlay" id="edit-modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-sheet-header">
+                <h3 id="edit-modal-title"><i class="fa-solid fa-pen-to-square"></i> Edit Table Order</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-edit-modal">&times;</button>
+            </div>
+
+            <div class="modal-sheet-body">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:12px; font-weight:800; color:var(--text-secondary); text-transform:uppercase;">
+                        Add / Remove Table Items:
+                    </span>
+                    <button type="button" id="btn-add-more-to-edit" style="background:#eff6ff; color:var(--brand-blue); border:1px solid #bfdbfe; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer;">
+                        <i class="fa-solid fa-plus"></i> Add More Dishes
+                    </button>
+                </div>
+
+                <div id="edit-items-list" style="display:flex; flex-direction:column; gap:8px;">
+                    <!-- Active table items injected for editing -->
+                </div>
+            </div>
+
+            <div class="modal-sheet-footer">
+                <div class="modal-total-row">
+                    <span>Updated Total:</span>
+                    <span id="edit-modal-total" style="color:var(--brand-navy); font-family:'JetBrains Mono',monospace;">Rs.0.00</span>
+                </div>
+                <button type="button" class="btn-update-order" id="btn-save-order-edits">
+                    <i class="fa-solid fa-check"></i> Save Changes to Order
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/waiter.js?v=3.0"></script>
+</body>
+</html>

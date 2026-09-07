@@ -1,0 +1,58 @@
+<resources>
+    <!-- Base Application Theme -->
+    <style name="Theme.HotelMitraya" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary Brand Colors -->
+        <item name="colorPrimary">@color/brand_navy</item>
+        <item name="colorPrimaryVariant">@color/brand_navy_dark</item>
+        <item name="colorOnPrimary">@color/text_white</item>
+
+        <!-- Secondary Colors -->
+        <item name="colorSecondary">@color/brand_accent</item>
+        <item name="colorSecondaryVariant">@color/brand_accent_hover</item>
+        <item name="colorOnSecondary">@color/text_white</item>
+
+        <!-- Background & Surface -->
+        <item name="android:windowBackground">@color/bg_main</item>
+        <item name="colorSurface">@color/bg_surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+
+        <!-- Status Bar & Navigation Bar -->
+        <item name="android:statusBarColor">@color/bg_surface</item>
+        <item name="android:navigationBarColor">@color/bg_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Custom Modern Card Style -->
+    <style name="Widget.HotelMitraya.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/bg_surface</item>
+        <item name="cardCornerRadius">14dp</item>
+        <item name="cardElevation">2dp</item>
+        <item name="strokeColor">@color/card_border</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <!-- Primary Action Button Style -->
+    <style name="Widget.HotelMitraya.Button.Primary" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/brand_navy</item>
+        <item name="android:textColor">@color/text_white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">10dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- Accent Action Button Style -->
+    <style name="Widget.HotelMitraya.Button.Accent" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/brand_accent</item>
+        <item name="android:textColor">@color/text_white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">10dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- Secondary Outline Button Style -->
+    <style name="Widget.HotelMitraya.Button.Outline" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">@color/brand_navy</item>
+        <item name="android:textColor">@color/brand_navy</item>
+        <item name="cornerRadius">10dp</item>
+    </style>
+</resources>

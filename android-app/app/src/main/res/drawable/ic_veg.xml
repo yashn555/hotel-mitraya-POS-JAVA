@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <!-- Green Veg Border Box -->
+    <path
+        android:strokeColor="#059669"
+        android:strokeWidth="1.5"
+        android:pathData="M2,2 h12 v12 h-12 z" />
+    <!-- Green Veg Circle -->
+    <path
+        android:fillColor="#059669"
+        android:pathData="M8,8m-3.5,0a3.5,3.5 0 1,1 7,0a3.5,3.5 0 1,1 -7,0" />
+</vector>

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hotel Mitraya — Smart Bill Generator</title>
+    
+    <!-- Meta tags for mobile web app -->
+    <meta name="theme-color" content="#1a2e40">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Generate and download professional PDF bills instantly from any device.">
+
+
+    <!-- PWA Web App Manifest & App Icons -->
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/logo.png">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Main Style -->
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/pwa.js"></script>
+
+</head>
+<body>
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-group">
+                <div class="brand-icon">
+                    <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="header-logo-img">
+                </div>
+                <div class="brand-text">
+                    <h1>HOTEL MITRAYA</h1>
+                    <span class="badge-subtitle">PDF BILLING SYSTEM</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <a href="/pos" class="btn-header-secondary" style="text-decoration: none;" title="Open Quick POS">
+                    <i class="fa-solid fa-cash-register"></i>
+                    <span class="btn-text">Quick POS</span>
+                </a>
+                <a href="/display" target="_blank" class="btn-header-secondary" style="text-decoration: none; border-color: rgba(245, 158, 11, 0.4);" title="Open Live Kitchen & Thermal Print Display">
+                    <i class="fa-solid fa-tv" style="color: #fbbf24;"></i>
+                    <span class="btn-text" style="color: #fbbf24; font-weight: 700;">Display</span>
+                </a>
+                <a href="/admin" class="btn-header-secondary" style="text-decoration: none;" title="Admin Dashboard">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span class="btn-text">Admin</span>
+                </a>
+                <button type="button" class="btn-icon-header" id="btn-theme-toggle" title="Toggle Theme">
+
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+                <button type="button" class="btn-header-secondary" id="btn-open-history">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span class="btn-text">Saved Bills</span>
+                    <span class="badge-count" id="bills-count-badge">0</span>
+                </button>
+                <button type="button" class="btn-icon-header" id="btn-logout" title="Lock System / Logout">
+                    <i class="fa-solid fa-lock"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+        <div class="app-grid">
+            
+            <!-- Left / Main Form Column -->
+            <section class="form-column">
+                <form id="bill-form" onsubmit="event.preventDefault();">
+
+                    <!-- Invoice Info Card -->
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-file-invoice"></i>
+                                <h2>Invoice Details</h2>
+                            </div>
+                            <button type="button" class="btn-link" id="btn-auto-bill-no" title="Suggest next Bill #">
+                                <i class="fa-solid fa-rotate"></i> Auto Bill #
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-grid-2">
+                                <div class="form-group full-width">
+                                    <label for="customer_name">
+                                        <i class="fa-solid fa-user"></i> Customer / Company Name <span class="req">*</span>
+                                    </label>
+                                    <input type="text" id="customer_name" class="form-control" 
+                                           placeholder="e.g. Buona Vita Hospitality Services LLP" required autocomplete="off">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="bill_no">
+                                        <i class="fa-solid fa-hashtag"></i> Bill Number <span class="req">*</span>
+                                    </label>
+                                    <input type="text" id="bill_no" class="form-control" placeholder="1001" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="bill_date">
+                                        <i class="fa-regular fa-calendar"></i> Bill Date
+                                    </label>
+                                    <div class="input-with-action">
+                                        <input type="text" id="bill_date" class="form-control" placeholder="DD/MM/YYYY">
+                                        <button type="button" class="btn-input-addon" id="btn-set-today" title="Set Today">Today</button>
+                                    </div>
+                                </div>
+
+                                <div class="form-group full-width">
+                                    <label for="created_on">
+                                        <i class="fa-regular fa-clock"></i> Date & Time (Print Display)
+                                    </label>
+                                    <div class="input-with-action">
+                                        <input type="text" id="created_on" class="form-control" placeholder="DD/MM/YYYY hh:mm AM">
+                                        <button type="button" class="btn-input-addon" id="btn-set-now" title="Set Current Time">Now</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items Card -->
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-bowl-food"></i>
+                                <h2>Bill Items</h2>
+                                <span class="badge-pill" id="items-counter">1 Item</span>
+                            </div>
+                            <div class="header-controls">
+                                <button type="button" class="btn-outline-sm" id="btn-quick-presets" title="Quick Food Menu">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Quick Add
+                                </button>
+                                <button type="button" class="btn-primary-sm" id="btn-add-item">
+                                    <i class="fa-solid fa-plus"></i> Add Item
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick presets drawer (collapsible) -->
+                        <div id="quick-presets-box" class="quick-presets-box hidden">
+                            <div class="presets-title">Popular Items:</div>
+                            <div class="preset-tags" id="preset-tags-container">
+                                <!-- Loaded dynamically via JS -->
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <!-- Desktop Table Header -->
+                            <div class="items-table-header desktop-only">
+                                <div class="col-num">#</div>
+                                <div class="col-name">Item Description</div>
+                                <div class="col-qty">Qty</div>
+                                <div class="col-rate">Rate (₹)</div>
+                                <div class="col-total">Total (₹)</div>
+                                <div class="col-action">Action</div>
+                            </div>
+
+                            <!-- Dynamic Items Container -->
+                            <div id="items-container" class="items-list">
+                                <!-- Populated dynamically by app.js -->
+                            </div>
+
+                            <div class="add-more-row">
+                                <button type="button" class="btn-add-more" id="btn-add-item-bottom">
+                                    <i class="fa-solid fa-circle-plus"></i> Add Another Item
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment & Settlement Card -->
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-credit-card"></i>
+                                <h2>Payment & Settlement</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-grid-3">
+                                <div class="form-group">
+                                    <label for="discount">
+                                        <i class="fa-solid fa-percent"></i> Discount (₹)
+                                    </label>
+                                    <input type="number" step="any" min="0" id="discount" class="form-control" value="0">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txn_mode">
+                                        <i class="fa-solid fa-wallet"></i> Payment Mode
+                                    </label>
+                                    <select id="txn_mode" class="form-control select-control">
+                                        <option value="CASH" selected>💵 Cash</option>
+                                        <option value="UPI">📱 UPI / QR</option>
+                                        <option value="CARD">💳 Card</option>
+                                        <option value="NET BANKING">🏦 Net Banking</option>
+                                        <option value="CREDIT">📑 Credit / Due</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="received_amount">
+                                        <i class="fa-solid fa-hand-holding-dollar"></i> Received Amount (₹)
+                                    </label>
+                                    <input type="number" step="any" min="0" id="received_amount" class="form-control" placeholder="Auto (Grand Total)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions Row (Desktop) -->
+                    <div class="form-actions-bar desktop-only">
+                        <button type="button" class="btn-secondary" id="btn-reset-form">
+                            <i class="fa-solid fa-arrow-rotate-left"></i> Reset Form
+                        </button>
+                        <button type="submit" class="btn-generate-main" id="btn-generate-bill">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span>GENERATE PDF BILL</span>
+                        </button>
+                    </div>
+
+                </form>
+            </section>
+
+            <!-- Right Column / Live Bill Summary Card -->
+            <aside class="summary-column">
+                <div class="glass-card summary-card sticky-card">
+                    <div class="card-header summary-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-receipt"></i>
+                            <h2>Live Bill Summary</h2>
+                        </div>
+                        <span class="status-indicator live">Live</span>
+                    </div>
+
+                    <div class="receipt-preview">
+                        <div class="receipt-hotel-name">HOTEL MITRAYA</div>
+                        <div class="receipt-sub">AUTHENTIC TASTE & HOSPITALITY</div>
+                        <div class="receipt-divider"></div>
+
+                        <div class="receipt-row">
+                            <span class="label">Customer:</span>
+                            <span class="val font-bold" id="preview-customer">—</span>
+                        </div>
+                        <div class="receipt-row">
+                            <span class="label">Bill No:</span>
+                            <span class="val font-mono" id="preview-billno">—</span>
+                        </div>
+                        <div class="receipt-row">
+                            <span class="label">Date:</span>
+                            <span class="val" id="preview-date">—</span>
+                        </div>
+
+                        <div class="receipt-divider-dashed"></div>
+
+                        <div class="receipt-items-summary" id="preview-items-list">
+                            <!-- Live items listed here -->
+                        </div>
+
+                        <div class="receipt-divider"></div>
+
+                        <div class="receipt-calc">
+                            <div class="calc-row">
+                                <span>Sub Total:</span>
+                                <span class="font-mono" id="preview-subtotal">₹0.00</span>
+                            </div>
+                            <div class="calc-row text-discount" id="preview-discount-row">
+                                <span>Discount:</span>
+                                <span class="font-mono" id="preview-discount">-₹0.00</span>
+                            </div>
+                            <div class="calc-row grand-total-row">
+                                <span>Grand Total:</span>
+                                <span class="font-mono" id="preview-grandtotal">₹0.00</span>
+                            </div>
+                            <div class="calc-row highlight-row">
+                                <span>Received Amount:</span>
+                                <span class="font-mono" id="preview-received">₹0.00</span>
+                            </div>
+                        </div>
+
+                        <div class="receipt-words" id="preview-amount-words">
+                            Rupees Zero Only
+                        </div>
+
+                        <div class="save-location-tag">
+                            <i class="fa-solid fa-folder-check"></i> Saving into: <code>/bills</code> folder as PDF
+                        </div>
+                    </div>
+
+                    <div class="summary-btn-wrapper desktop-only">
+                        <button type="button" class="btn-generate-main w-full" id="btn-generate-bill-sidebar">
+                            <i class="fa-solid fa-file-pdf"></i> Generate & Save PDF
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+        </div>
+    </main>
+
+    <!-- Mobile Sticky Floating Footer Action -->
+    <div class="mobile-sticky-bar mobile-only">
+        <div class="mobile-bar-info">
+            <span class="mobile-bar-label">Grand Total:</span>
+            <span class="mobile-bar-val font-mono" id="mobile-grand-total">₹0</span>
+        </div>
+        <button type="button" class="btn-mobile-generate" id="btn-generate-bill-mobile">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>GENERATE PDF</span>
+        </button>
+    </div>
+
+    <!-- Success / PDF Output Modal -->
+    <div id="modal-success" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header success">
+                <div class="modal-header-title">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <h3>Bill Generated Successfully!</h3>
+                </div>
+                <button type="button" class="btn-close-modal" id="btn-close-success-modal">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="success-banner">
+                    <div class="success-icon-wrap">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <div class="success-details">
+                        <h4 id="success-bill-title">Buona_Vita_1229.pdf</h4>
+                        <p class="text-muted" id="success-bill-path">Saved in <strong>/bills</strong> folder</p>
+                        <div class="success-stats">
+                            <span class="badge-stat" id="success-bill-size">154 KB</span>
+                            <span class="badge-stat" id="success-bill-time">Just now</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PDF Preview Container -->
+                <div class="pdf-preview-box desktop-only">
+                    <iframe id="pdf-preview-frame" src="" title="PDF Preview"></iframe>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="modal-action-grid">
+                    <a id="btn-download-pdf" href="#" class="btn-modal-action btn-download" download>
+                        <i class="fa-solid fa-download"></i> Download PDF
+                    </a>
+                    <a id="btn-view-pdf" href="#" target="_blank" class="btn-modal-action btn-preview">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Open / Print
+                    </a>
+                    <button type="button" class="btn-modal-action btn-share" id="btn-share-bill">
+                        <i class="fa-brands fa-whatsapp"></i> Share on WhatsApp
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btn-new-bill-after-success">
+                    <i class="fa-solid fa-plus"></i> Create Next Bill
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Drawer / Offcanvas -->
+    <div id="drawer-history" class="drawer-overlay hidden">
+        <div class="drawer-panel">
+            <div class="drawer-header">
+                <div class="drawer-title">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <h3>Saved Bills in <code>/bills</code></h3>
+                </div>
+                <button type="button" class="btn-close-drawer" id="btn-close-history">&times;</button>
+            </div>
+
+            <div class="drawer-search-bar">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="history-search-input" placeholder="Search by customer name or bill no...">
+                <button type="button" class="btn-refresh" id="btn-refresh-history" title="Refresh list">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+
+            <div class="drawer-body" id="history-list-container">
+                <div class="loading-state">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <span>Loading saved bills...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader-card">
+            <div class="spinner-brand"></div>
+            <h3 id="loader-title">Generating PDF Bill...</h3>
+            <p id="loader-subtitle">Filling template & saving to <code>/bills</code> folder</p>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- JavaScript Application Logic -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

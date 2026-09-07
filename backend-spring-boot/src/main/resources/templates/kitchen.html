@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kitchen Display — Hotel Mitraya</title>
+
+    <meta name="theme-color" content="#0a1017">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-darker: #060a10;
+            --bg-card: #0d1522;
+            --bg-surface: #141f33;
+            --border: #1e2e48;
+            --border-highlight: #334d75;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-gold: #f59e0b;
+            --accent-emerald: #10b981;
+            --accent-cyan: #38bdf8;
+            --accent-orange: #f97316;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-darker);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Header */
+        .kitchen-header {
+            background-color: var(--bg-card);
+            border-bottom: 2px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            color: var(--accent-gold);
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header-center {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .live-stream-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #34d399;
+            padding: 6px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .pulse-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: #10b981;
+            box-shadow: 0 0 12px #10b981;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.6; }
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .clock-display {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            background: var(--bg-surface);
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .sound-toggle-btn {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .sound-toggle-btn.active {
+            color: var(--accent-emerald);
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        /* Order Summary Bar */
+        .summary-bar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .summary-count {
+            color: var(--accent-gold);
+            font-size: 15px;
+            font-weight: 900;
+        }
+
+        /* Tickets Grid */
+        .kitchen-main {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .tickets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .ticket-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+
+        .ticket-card:hover {
+            border-color: var(--border-highlight);
+            transform: translateY(-2px);
+        }
+
+        .ticket-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .table-tag {
+            background: #1e3a8a;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 900;
+            padding: 6px 14px;
+            border-radius: 10px;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-tag.walkin {
+            background: #065f46;
+        }
+
+        .time-badge {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .elapsed-tag {
+            color: var(--accent-orange);
+            font-weight: 800;
+        }
+
+        .ticket-notes {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #fbbf24;
+            font-weight: 700;
+        }
+
+        .items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background: var(--bg-surface);
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .item-qty-badge {
+            background: #1e293b;
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-highlight);
+            font-family: var(--font-mono);
+            font-weight: 900;
+            font-size: 16px;
+            min-width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-name {
+            font-size: 16px;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.25;
+        }
+
+        .item-note-inline {
+            font-size: 12px;
+            color: #fbbf24;
+            font-style: italic;
+            margin-top: 3px;
+            font-weight: 600;
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 90px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 54px;
+            opacity: 0.3;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="kitchen-header">
+        <div class="brand-group">
+            <img src="/static/logo.png" alt="Hotel Mitraya Logo" class="logo-img">
+            <div>
+                <h1 class="brand-title">HOTEL MITRAYA</h1>
+                <span class="brand-sub"><i class="fa-solid fa-utensils"></i> Kitchen Orders Screen</span>
+            </div>
+        </div>
+
+        <div class="header-center">
+            <div class="live-stream-pill">
+                <span class="pulse-dot"></span>
+                <span>KITCHEN DISPLAY ACTIVE</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="clock-display" id="kitchen-clock">--:--:--</div>
+            <button type="button" class="sound-toggle-btn active" id="btn-sound-toggle">
+                <i class="fa-solid fa-volume-high"></i>
+                <span id="sound-label">Sound ON</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Summary Bar -->
+    <section class="summary-bar">
+        <div>Active Kitchen Orders: <span class="summary-count" id="active-orders-count">0</span></div>
+        <div id="last-sync-time">Last updated: Just now</div>
+    </section>
+
+    <!-- Tickets Grid -->
+    <main class="kitchen-main">
+        <div class="tickets-grid" id="kitchen-tickets-grid">
+            <div class="empty-state">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <h3>Loading Kitchen Orders...</h3>
+                <p>Connecting to restaurant order stream</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/kitchen.js?v=3.0"></script>
+</body>
+
+</html>

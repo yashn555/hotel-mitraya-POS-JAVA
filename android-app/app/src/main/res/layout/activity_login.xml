@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_main"
+    android:fillViewport="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="20dp">
+
+        <!-- Top Settings Gear -->
+        <ImageButton
+            android:id="@+id/btnServerSettings"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_manage"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/text_secondary" />
+
+        <!-- Main Login Card Container -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginVertical="16dp"
+            app:cardBackgroundColor="@color/bg_surface"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="4dp"
+            app:cardMaxElevation="6dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btnServerSettings"
+            app:strokeColor="@color/card_border"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <!-- Logo & Branding -->
+                <ImageView
+                    android:id="@+id/ivHotelLogo"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:contentDescription="Hotel Mitraya Logo"
+                    android:src="@drawable/logo_mitraya" />
+
+                <TextView
+                    android:id="@+id/tvHotelTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-black"
+                    android:text="@string/hotel_title"
+                    android:textColor="@color/brand_navy"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/tvHotelSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/hotel_subtitle"
+                    android:textColor="@color/text_muted"
+                    android:textSize="13sp" />
+
+                <!-- Role Selection Chips -->
+                <LinearLayout
+                    android:id="@+id/layoutRoles"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:background="@drawable/bg_glass_card"
+                    android:orientation="horizontal"
+                    android:padding="4dp">
+
+                    <Button
+                        android:id="@+id/btnRoleAdmin"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:background="@drawable/bg_chip_role_selected"
+                        android:paddingHorizontal="14dp"
+                        android:text="@string/role_admin"
+                        android:textColor="@color/text_white"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <Button
+                        android:id="@+id/btnRoleCashier"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="4dp"
+                        android:background="@drawable/bg_chip_role_unselected"
+                        android:paddingHorizontal="14dp"
+                        android:text="@string/role_cashier"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btnRoleWaiter"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="4dp"
+                        android:background="@drawable/bg_chip_role_unselected"
+                        android:paddingHorizontal="14dp"
+                        android:text="@string/role_waiter"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- PIN Prompt & Masked Dots -->
+                <TextView
+                    android:id="@+id/tvPinPrompt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/security_pin_title"
+                    android:textColor="@color/text_muted"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:id="@+id/layoutPinDots"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/dot1"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_pin_dot_empty" />
+
+                    <View
+                        android:id="@+id/dot2"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_pin_dot_empty" />
+
+                    <View
+                        android:id="@+id/dot3"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_pin_dot_empty" />
+
+                    <View
+                        android:id="@+id/dot4"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_margin="6dp"
+                        android:background="@drawable/bg_pin_dot_empty" />
+                </LinearLayout>
+
+                <!-- Numeric Keypad Grid -->
+                <GridLayout
+                    android:id="@+id/gridKeypad"
+                    android:layout_width="250dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:alignmentMode="alignMargins"
+                    android:columnCount="3"
+                    android:rowCount="4">
+
+                    <Button
+                        android:id="@+id/btn1"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="1"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn2"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="2"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn3"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="3"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn4"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="4"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn5"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="5"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn6"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="6"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn7"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="7"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn8"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="8"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn9"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="9"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btnClear"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="C"
+                        android:textColor="@color/brand_crimson"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <Button
+                        android:id="@+id/btn0"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="0"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btnBackspace"
+                        android:layout_width="70dp"
+                        android:layout_height="56dp"
+                        android:layout_margin="5dp"
+                        android:background="@drawable/bg_keypad_button"
+                        android:text="⌫"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="18sp" />
+                </GridLayout>
+
+                <!-- Error Message -->
+                <TextView
+                    android:id="@+id/tvErrorMessage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/brand_crimson"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+
+                <!-- Unlock Button -->
+                <FrameLayout
+                    android:layout_width="250dp"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/btnUnlock"
+                        style="@style/Widget.HotelMitraya.Button.Primary"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="@string/unlock_access"
+                        android:textSize="15sp" />
+
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:indeterminateTint="@color/text_white"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
