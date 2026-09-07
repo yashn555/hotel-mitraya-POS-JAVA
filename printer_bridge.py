@@ -49,7 +49,7 @@ def get_server_base_url():
         if len(sys.argv) > 1 and sys.argv[1].startswith("http"):
             url = sys.argv[1]
         else:
-            url = "http://localhost:5055"
+            url = "https://hotel-mitraya-pos-java.onrender.com"
     return url.rstrip("/")
 
 

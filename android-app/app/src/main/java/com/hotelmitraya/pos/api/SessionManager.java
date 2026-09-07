@@ -20,7 +20,7 @@ public class SessionManager {
     }
 
     public String getServerUrl() {
-        return prefs.getString(KEY_SERVER_URL, "http://10.0.2.2:5055/");
+        return prefs.getString(KEY_SERVER_URL, "https://hotel-mitraya-pos-java.onrender.com/");
     }
 
     public void setServerUrl(String url) {

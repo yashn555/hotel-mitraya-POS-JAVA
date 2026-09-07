@@ -16,7 +16,7 @@ public class ApiClient {
     public static ApiService getService() {
         String baseUrl = HotelMitrayaApp.getInstance().getSessionManager().getServerUrl();
         if (baseUrl == null || (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))) {
-            baseUrl = "http://10.0.2.2:5055/";
+            baseUrl = "https://hotel-mitraya-pos-java.onrender.com/";
         }
         if (!baseUrl.endsWith("/")) {
             baseUrl += "/";
@@ -43,7 +43,7 @@ public class ApiClient {
                         .build();
             } catch (Exception e) {
                 retrofit = new Retrofit.Builder()
-                        .baseUrl("http://10.0.2.2:5055/")
+                        .baseUrl("https://hotel-mitraya-pos-java.onrender.com/")
                         .client(client)
                         .addConverterFactory(GsonConverterFactory.create())
                         .build();
