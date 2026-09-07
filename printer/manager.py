@@ -98,10 +98,31 @@ class PrinterDetector:
                 matched = p
                 break
         
+        if not matched:
+            # Fallback 1: Use Windows Default Printer
+            for p in printers:
+                name = p.get("name", "")
+                low = name.lower()
+                if p.get("is_default") and not any(ign in low for ign in ignore_keywords):
+                    matched = p
+                    break
+
+        if not matched:
+            # Fallback 2: Use any available physical printer
+            for p in printers:
+                name = p.get("name", "")
+                low = name.lower()
+                if not any(ign in low for ign in ignore_keywords):
+                    matched = p
+                    break
+
+        if not matched and printers:
+            matched = printers[0]
+
         if matched:
             name = matched["name"]
             low = name.lower()
-            width = 58 if ("58" in low or "h58" in low or "hop-h58" in low or "32" in low) else 80
+            width = 58 if ("58" in low or "h58" in low or "32" in low or "2inch" in low) else 80
             return {
                 "connected": True,
                 "name": name,
@@ -112,7 +133,7 @@ class PrinterDetector:
         
         return {
             "connected": False,
-            "name": "Not Connected",
+            "name": "Default Printer",
             "paper_width": 80,
             "columns": 42,
             "printer": None

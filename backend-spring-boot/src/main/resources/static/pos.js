@@ -26,12 +26,13 @@
     let pollTimer = null;
     let lastGeneratedBill = null;
 
-    // Printer Hardware State
+    // Printer Hardware State (Universal for Any USB, Windows, Bluetooth or Network Printer)
+    const savedPaperWidth = parseInt(localStorage.getItem("mitraya_paper_width")) || 58;
     let printerState = {
-        connected: false,
-        name: "Not Connected",
-        type: "NONE", // "BLUETOOTH", "SYSTEM", "NONE"
-        paperWidth: 80,
+        connected: true,
+        name: "Universal Printer",
+        type: "SYSTEM",
+        paperWidth: savedPaperWidth,
         systemPrinters: [],
         activeSystemPrinter: ""
     };
@@ -437,6 +438,7 @@
 
     function setPaperWidth(width) {
         printerState.paperWidth = width;
+        localStorage.setItem("mitraya_paper_width", width);
         if (window.MitrayaBluetoothPrinter) {
             window.MitrayaBluetoothPrinter.setPaperWidth(width);
         }
@@ -447,7 +449,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ paper_width: width, printer_name: printerState.name })
         }).catch(() => {});
-        showToast(`Paper width set to ${width}mm (${width === 58 ? '32' : '42'} columns)`, "success");
+        showToast(`Paper format set to ${width}mm (${width === 58 ? '2-inch Thermal' : '3-inch / Standard'})`, "success");
     }
 
     // ─── KEYBOARD SHORTCUTS (F2, F4, F7, F10, Ctrl+Enter, Alt+1/2/3) ───────────
