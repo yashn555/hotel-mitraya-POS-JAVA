@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: hotel-mitraya-pos
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --threads 2 --timeout 120
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_4I3xAbHvLWZD@ep-round-heart-a5dbtkfd-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_PIN
+        value: "2005"
+      - key: ADMIN_PIN
+        value: "2005"
+      - key: CASHIER_PIN
+        value: "5678"
+      - key: WAITER_PIN
+        value: "1234"
